@@ -1,0 +1,7 @@
+{
+  "trigger": "PostToolUse",
+  "tool": "replace_string_in_file",
+  "condition": "file.endsWith('.ts') || file.endsWith('.vue')",
+  "command": "npm run build",
+  "description": "Run TS type-check and production build after TypeScript or Vue edits"
+}
