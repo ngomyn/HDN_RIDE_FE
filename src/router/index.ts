@@ -37,6 +37,24 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/drivers',
+    name: 'drivers',
+    component: () => import('@/pages/DriverManagementPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/customers',
+    name: 'customers',
+    component: () => import('@/pages/CustomerManagementPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/student-verifications',
+    name: 'student-verifications',
+    component: () => import('@/pages/StudentVerificationPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/dashboard',
   },

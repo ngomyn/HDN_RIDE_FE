@@ -1,6 +1,6 @@
 export type TripExecutionStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'CANCELED'
 
-export type BookingStatus = 'CONFIRMED' | 'WAITING' | 'CANCELED'
+export type BookingStatus = 'PENDING' | 'ASSIGNED' | 'CONFIRMED' | 'ONGOING' | 'CANCELLED' | 'COMPLETED'
 
 export interface NotificationItem {
   id: number

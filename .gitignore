@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 Web_Design
+.github/
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

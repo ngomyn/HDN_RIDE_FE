@@ -1,10 +1,13 @@
 // Enums
 export type Role = 'CUSTOMER' | 'DRIVER' | 'ADMIN'
+export type AccountStatus = 'ACTIVE' | 'INACTIVE'
 export type TripType = 'SHARED' | 'PRIVATE'
+export type BookingType = 'SHARED' | 'PRIVATE'
 export type TripStatus = 'SCHEDULED' | 'ONGOING' | 'COMPLETED' | 'CANCELLED'
-export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED'
+export type BookingStatus = 'PENDING' | 'ASSIGNED' | 'CONFIRMED' | 'ONGOING' | 'CANCELLED' | 'COMPLETED'
 export type PaymentType = 'CASH' | 'MOMO' | 'ZALOPAY' | 'CARD'
 export type SeatLockStatus = 'LOCKED' | 'CONSUMED' | 'EXPIRED' | 'RELEASED'
+export type StudentStatus = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED'
 
 // Models
 export interface User {
@@ -12,10 +15,31 @@ export interface User {
   name: string
   phone: string
   role: Role
+  accountStatus: AccountStatus
   avatar: string | null
   rating: number | null
   loyaltyPoints: number
   createdAt: string
+  createUser?: string
+  createDate?: string
+  updateUser?: string | null
+  updateDate?: string
+}
+
+export interface StudentVerification {
+  id: number
+  name: string
+  phone: string
+  avatar: string | null
+  studentCardImage: string | null
+  studentStatus: StudentStatus
+  isStudent: boolean
+  createdAt: string
+  updateDate?: string
+}
+
+export interface VerifyStudentCardDto {
+  action: 'APPROVE' | 'REJECT'
 }
 
 export interface Vehicle {
@@ -29,7 +53,7 @@ export interface Vehicle {
 
 export interface Trip {
   id: number
-  driverId: number | null
+  driverId: number
   driver?: Pick<User, 'id' | 'name' | 'rating'>
   fromPlace: string
   fromAddress: string
@@ -42,27 +66,115 @@ export interface Trip {
   tripCost: number | null
   status: TripStatus
   createdAt: string
+  createUser?: string
+  createDate?: string
+  updateUser?: string | null
+  updateDate?: string
 }
 
 export interface Booking {
   id: number
   userId: number
-  tripId: number
-  trip?: Pick<Trip, 'id' | 'fromPlace' | 'toPlace' | 'departAt'>
-  seats: number[]
-  totalPassengers: number
+  tripId: number | null
+  user?: Pick<User, 'id' | 'name' | 'phone'>
+  trip?: Pick<Trip, 'id' | 'fromPlace' | 'toPlace' | 'departAt'> | null
+  passengerName: string
+  passengerPhone: string
+  pickupDistrict: string
+  pickupWard: string
+  pickupAddress: string
+  dropoffPhone: string
+  bookingType: BookingType
+  numberOfPassengers: number
+  assignedByAdminPhone: string | null
   status: BookingStatus
   paymentMethodId: number | null
   amount: number | null
-  pickupWard: string | null
-  pickupAddress: string | null
-  pickupLat: number | null
-  pickupLng: number | null
   dropoffAddress: string | null
   dropoffLat: number | null
   dropoffLng: number | null
   dropoffTime: string | null
   createdAt: string
+  createUser?: string
+  createDate?: string
+  updateUser?: string | null
+  updateDate?: string
+}
+
+export interface DriverVehicleSummary {
+  id: number
+  model: string
+  plate: string
+  seatsTotal: number
+}
+
+export interface AdminDriver {
+  id: number
+  name: string
+  phone: string
+  avatar: string | null
+  rating: number | null
+  accountStatus: AccountStatus
+  loyaltyPoints: number
+  createdAt: string
+  vehicle: DriverVehicleSummary | null
+  totalTrips: number
+}
+
+export interface DriverSummary {
+  total: number
+  active: number
+  averageRating: number
+  totalTrips: number
+}
+
+export interface CustomerAdminItem {
+  id: number
+  name: string
+  phone: string
+  avatar: string | null
+  accountStatus: AccountStatus
+  studentStatus: StudentStatus
+  isStudent: boolean
+  studentCardImage: string | null
+  totalBookings: number
+  createdAt: string
+}
+
+export interface CustomerAdminSummary {
+  total: number
+  active: number
+  approvedStudents: number
+  pendingStudents: number
+}
+
+export interface CustomerAdminListQuery {
+  page?: number
+  limit?: number
+  name?: string
+  phone?: string
+  accountStatus?: AccountStatus
+  studentStatus?: StudentStatus
+}
+
+export interface CreateDriverResult {
+  driver: {
+    id: number
+    name: string
+    phone: string
+    avatar: string | null
+    accountStatus: AccountStatus
+    loyaltyPoints: number
+    createdAt: string
+  }
+  vehicle: DriverVehicleSummary
+}
+
+export interface DriverStatusUpdateResult {
+  id: number
+  name: string
+  phone: string
+  accountStatus: AccountStatus
 }
 
 export interface District {
@@ -111,6 +223,7 @@ export interface CreateTripDto {
   departAt: string
   type: TripType
   totalSeats: number
+  driverId?: number
   vehicleId?: number
 }
 
@@ -120,10 +233,53 @@ export interface UpdateTripDto {
 }
 
 export interface CreateBookingDto {
+  passengerName: string
+  passengerPhone: string
+  pickupDistrict: string
+  pickupWard: string
+  pickupAddress: string
+  dropoffPhone: string
+  bookingType: BookingType
+  numberOfPassengers: number
+}
+
+export interface AssignBookingDto {
   tripId: number
-  seats: number[]
-  totalPassengers: number
-  paymentMethod?: PaymentType
+}
+
+export interface AdminBookingListQuery {
+  page?: number
+  limit?: number
+  date?: string
+  route?: 'all' | 'dn-hue' | 'hue-dn'
+  customer?: string
+  status?: BookingStatus
+}
+
+export interface AdminBookingSummary {
+  totalToday: number
+  confirmedToday: number
+  pendingToday: number
+}
+
+export interface CreateDriverDto {
+  name: string
+  phone: string
+  password: string
+  avatar?: string
+  vehicleModel: string
+  vehiclePlate: string
+  vehicleSeats: number
+}
+
+export interface UpdateDriverDto {
+  name?: string
+  avatar?: string
+  rating?: number
+}
+
+export interface UpdateDriverStatusDto {
+  accountStatus: AccountStatus
 }
 
 // Response wrappers
@@ -137,6 +293,7 @@ export interface PaginatedResponse<T> {
   total: number
   page: number
   limit: number
+  totalPages: number
 }
 
 export interface AuthResponse {

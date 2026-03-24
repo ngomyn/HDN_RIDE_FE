@@ -1,15 +1,33 @@
 import type {
+  AccountStatus,
+  AdminDriver,
   ApiResponse,
+  AssignBookingDto,
   PaginatedResponse,
   AuthResponse,
+  BookingStatus,
+  CreateDriverDto,
+  CreateDriverResult,
+  CustomerAdminItem,
+  CustomerAdminListQuery,
+  CustomerAdminSummary,
+  DriverSummary,
+  Role,
   User,
   Trip,
   Booking,
+  DriverStatusUpdateResult,
   Vehicle,
   CreateTripDto,
   CreateBookingDto,
+  AdminBookingListQuery,
+  AdminBookingSummary,
+  UpdateDriverDto,
+  UpdateDriverStatusDto,
   UpdateProfileDto,
   District,
+  StudentVerification,
+  VerifyStudentCardDto,
 } from '@/types/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
@@ -100,6 +118,22 @@ export const apiClient = {
     return handleResponse<ApiResponse<{ rating: number }>>(res)
   },
 
+  async getUsers(params?: { role?: Role; page?: number; limit?: number }) {
+    const query = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          query.append(key, String(value))
+        }
+      })
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    const res = await fetch(`${API_BASE_URL}/users${suffix}`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<PaginatedResponse<User>>>(res)
+  },
+
   // Vehicle endpoints
   async getMyVehicles() {
     const res = await fetch(`${API_BASE_URL}/vehicles/my`, {
@@ -116,7 +150,7 @@ export const apiClient = {
   },
 
   // Trip endpoints
-  async searchTrips(params: { fromPlace?: string; toPlace?: string; startDate?: string; endDate?: string; page?: number; limit?: number }) {
+  async searchTrips(params: { fromPlace?: string; toPlace?: string; startDate?: string; endDate?: string; driver?: string; createUser?: string; page?: number; limit?: number }) {
     const query = new URLSearchParams()
     Object.entries(params).forEach(([key, value]) => {
       if (value) query.append(key, String(value))
@@ -145,7 +179,7 @@ export const apiClient = {
     const res = await fetch(`${API_BASE_URL}/trips/${tripId}/available-seats`, {
       headers: getHeaders(false),
     })
-    return handleResponse<ApiResponse<{ availableSeats: number[]; lockedSeats: number[] }>>(res)
+    return handleResponse<ApiResponse<{ availableSeats: number }>>(res)
   },
 
   async createTrip(payload: CreateTripDto) {
@@ -184,31 +218,32 @@ export const apiClient = {
     return handleResponse<ApiResponse<Booking>>(res)
   },
 
-  async getMyBookings(params?: { status?: string; page?: number; limit?: number }) {
+  async getMyBookings(params?: { status?: BookingStatus; page?: number; limit?: number }) {
     const query = new URLSearchParams()
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value) query.append(key, String(value))
       })
     }
-    const res = await fetch(`${API_BASE_URL}/bookings/my?${query}`, {
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    const res = await fetch(`${API_BASE_URL}/bookings/my${suffix}`, {
       headers: getHeaders(),
     })
     return handleResponse<ApiResponse<PaginatedResponse<Booking>>>(res)
   },
 
-  async getBookingHistory() {
-    const res = await fetch(`${API_BASE_URL}/bookings/history`, {
+  async getBookingHistory(params?: { status?: BookingStatus; page?: number; limit?: number }) {
+    const query = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) query.append(key, String(value))
+      })
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    const res = await fetch(`${API_BASE_URL}/bookings/history${suffix}`, {
       headers: getHeaders(),
     })
-    return handleResponse<ApiResponse<Booking[]>>(res)
-  },
-
-  async getBookingDetail(id: number) {
-    const res = await fetch(`${API_BASE_URL}/bookings/${id}`, {
-      headers: getHeaders(),
-    })
-    return handleResponse<ApiResponse<Booking>>(res)
+    return handleResponse<ApiResponse<PaginatedResponse<Booking>>>(res)
   },
 
   async cancelBooking(id: number) {
@@ -243,6 +278,138 @@ export const apiClient = {
       headers: getHeaders(),
     })
     return handleResponse<ApiResponse<Booking[]>>(res)
+  },
+
+  async getAdminPendingBookings(params?: { page?: number; limit?: number }) {
+    const query = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) query.append(key, String(value))
+      })
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    const res = await fetch(`${API_BASE_URL}/bookings/admin/pending${suffix}`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<PaginatedResponse<Booking>>>(res)
+  },
+
+  async getAdminBookings(params?: AdminBookingListQuery) {
+    const query = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          query.append(key, String(value))
+        }
+      })
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    const res = await fetch(`${API_BASE_URL}/bookings/admin${suffix}`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<PaginatedResponse<Booking>>>(res)
+  },
+
+  async getAdminBookingSummary(date?: string) {
+    const query = new URLSearchParams()
+    if (date) {
+      query.append('date', date)
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    const res = await fetch(`${API_BASE_URL}/bookings/admin/summary${suffix}`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<AdminBookingSummary>>(res)
+  },
+
+  async assignBookingToTrip(bookingId: number, payload: AssignBookingDto) {
+    const res = await fetch(`${API_BASE_URL}/bookings/admin/${bookingId}/assign`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<ApiResponse<Booking>>(res)
+  },
+
+  // Admin endpoints
+  async createDriver(payload: CreateDriverDto) {
+    const res = await fetch(`${API_BASE_URL}/admin/drivers`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<ApiResponse<CreateDriverResult>>(res)
+  },
+
+  async getAdminDrivers(params?: { status?: AccountStatus; search?: string; page?: number; limit?: number }) {
+    const query = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) query.append(key, String(value))
+      })
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    const res = await fetch(`${API_BASE_URL}/admin/drivers${suffix}`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<PaginatedResponse<AdminDriver>>>(res)
+  },
+
+  async updateDriver(driverId: number, payload: UpdateDriverDto) {
+    const res = await fetch(`${API_BASE_URL}/admin/drivers/${driverId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<ApiResponse<AdminDriver>>(res)
+  },
+
+  async updateDriverStatus(driverId: number, payload: UpdateDriverStatusDto) {
+    const res = await fetch(`${API_BASE_URL}/admin/drivers/${driverId}/status`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<ApiResponse<DriverStatusUpdateResult>>(res)
+  },
+
+  async getDriverSummary() {
+    const res = await fetch(`${API_BASE_URL}/admin/drivers/summary`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<DriverSummary>>(res)
+  },
+
+  async getAdminCustomers(params?: CustomerAdminListQuery) {
+    const query = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          query.append(key, String(value))
+        }
+      })
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    const res = await fetch(`${API_BASE_URL}/admin/customers${suffix}`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<PaginatedResponse<CustomerAdminItem>>>(res)
+  },
+
+  async getCustomerSummary() {
+    const res = await fetch(`${API_BASE_URL}/admin/customers/summary`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<CustomerAdminSummary>>(res)
+  },
+
+  async updateCustomerStatus(userId: number, accountStatus: AccountStatus) {
+    const res = await fetch(`${API_BASE_URL}/admin/customers/${userId}/status`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ accountStatus }),
+    })
+    return handleResponse<ApiResponse<{ id: number; name: string; phone: string; accountStatus: AccountStatus }>>(res)
   },
 
   // District endpoints
@@ -301,5 +468,42 @@ export const apiClient = {
       headers: getHeaders(),
     })
     return handleResponse<ApiResponse<Array<{ id: number; route: string; time: string; driver: string; availableSeats: number }>>>(res)
+  },
+
+  // Student verification
+  async uploadStudentCard(studentCardImage: string) {
+    const res = await fetch(`${API_BASE_URL}/users/me/student-card`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ studentCardImage }),
+    })
+    return handleResponse<ApiResponse<{ id: number; name: string; phone: string; studentStatus: string; isStudent: boolean }>>(res)
+  },
+
+  async getStudentVerifications(params: { page?: number; limit?: number; status?: string } = {}) {
+    const query = new URLSearchParams()
+    if (params.page) query.append('page', String(params.page))
+    if (params.limit) query.append('limit', String(params.limit))
+    if (params.status) query.append('status', params.status)
+    const res = await fetch(`${API_BASE_URL}/admin/student-verifications?${query}`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<PaginatedResponse<StudentVerification>>>(res)
+  },
+
+  async getStudentVerificationCount() {
+    const res = await fetch(`${API_BASE_URL}/admin/student-verifications/count`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<{ pending: number }>>(res)
+  },
+
+  async verifyStudentCard(userId: number, payload: VerifyStudentCardDto) {
+    const res = await fetch(`${API_BASE_URL}/admin/student-verifications/${userId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<ApiResponse<{ id: number; name: string; phone: string; studentStatus: string; isStudent: boolean }>>(res)
   },
 }

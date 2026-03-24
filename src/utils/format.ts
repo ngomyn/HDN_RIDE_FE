@@ -1,4 +1,5 @@
-import type { BookingStatus, TripExecutionStatus } from '@/types/models'
+import type { BookingStatus } from '@/types/api'
+import type { TripExecutionStatus } from '@/types/models'
 
 export const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('vi-VN', {
@@ -21,7 +22,10 @@ export const tripStatusLabel: Record<TripExecutionStatus, string> = {
 }
 
 export const bookingStatusLabel: Record<BookingStatus, string> = {
+  PENDING: 'Cho gan chuyen',
+  ASSIGNED: 'Da gan chuyen',
   CONFIRMED: 'Da xac nhan',
-  WAITING: 'Cho xac nhan',
-  CANCELED: 'Da huy',
+  ONGOING: 'Dang thuc hien',
+  CANCELLED: 'Da huy',
+  COMPLETED: 'Hoan thanh',
 }

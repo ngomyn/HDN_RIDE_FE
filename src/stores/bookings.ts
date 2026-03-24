@@ -1,82 +1,238 @@
 import { defineStore } from 'pinia'
-import { bookingRecordsSeed } from '@/data/mockData'
 import { apiClient } from '@/utils/apiClient'
-import type { BookingStatusRecord } from '@/types/models'
+import type { Booking, BookingStatus, PaginatedResponse, AdminBookingSummary } from '@/types/api'
+
+type BookingQuery = {
+  status?: BookingStatus
+  page?: number
+  limit?: number
+}
+
+type PaginationState = {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
+const createPagination = (): PaginationState => ({
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalPages: 1,
+})
+
+const applyPagination = (target: PaginationState, data: PaginatedResponse<unknown>) => {
+  target.page = data.page
+  target.limit = data.limit
+  target.total = data.total
+  target.totalPages = data.totalPages
+}
+
+const patchBookingInList = (list: Booking[], updatedBooking: Booking) => {
+  const index = list.findIndex((item) => item.id === updatedBooking.id)
+  if (index >= 0) {
+    list.splice(index, 1, updatedBooking)
+  }
+}
 
 export const useBookingStore = defineStore('bookings', {
   state: () => ({
-    records: bookingRecordsSeed as BookingStatusRecord[],
-    selectedBooking: null as BookingStatusRecord | null,
+    myBookings: [] as Booking[],
+    bookingHistory: [] as Booking[],
+    pendingBookings: [] as Booking[],
+    adminBookings: [] as Booking[],
+    selectedBooking: null as Booking | null,
+
+    myPagination: createPagination(),
+    historyPagination: createPagination(),
+    pendingPagination: createPagination(),
+    adminPagination: createPagination(),
+
+    summary: {
+      totalToday: 0,
+      confirmedToday: 0,
+      pendingToday: 0,
+    } as AdminBookingSummary,
+
+    adminFilters: {
+      date: '',
+      route: 'all' as 'all' | 'dn-hue' | 'hue-dn',
+      customer: '',
+      status: '' as '' | BookingStatus,
+    },
+
     filters: {
-      route: '',
-      startDate: '',
-      endDate: '',
-      status: '' as string,
+      status: '' as '' | BookingStatus,
+      bookingType: '' as '' | 'SHARED' | 'PRIVATE',
     },
     searchText: '',
     loading: false,
     error: null as string | null,
   }),
   getters: {
-    filtered(): BookingStatusRecord[] {
-      return this.records.filter(booking => {
-        let matches = true
+    filteredPending(): Booking[] {
+      return this.pendingBookings.filter((booking) => {
+        if (this.filters.status && booking.status !== this.filters.status) return false
+        if (this.filters.bookingType && booking.bookingType !== this.filters.bookingType) return false
 
-        if (this.filters.route && booking.route !== this.filters.route) matches = false
-        if (this.filters.status && booking.status !== this.filters.status) matches = false
+        if (!this.searchText) return true
 
-        if (this.filters.startDate) {
-          const start = new Date(this.filters.startDate)
-          const bookingDate = new Date(booking.date)
-          if (bookingDate < start) matches = false
-        }
+        const keyword = this.searchText.toLowerCase().trim()
+        if (!keyword) return true
 
-        if (this.filters.endDate) {
-          const end = new Date(this.filters.endDate)
-          const bookingDate = new Date(booking.date)
-          end.setHours(23, 59, 59, 999)
-          if (bookingDate > end) matches = false
-        }
-
-        if (this.searchText) {
-          const searchLower = this.searchText.toLowerCase()
-          matches = matches && (
-            booking.customerName.toLowerCase().includes(searchLower) ||
-            booking.phone.includes(this.searchText)
-          )
-        }
-
-        return matches
+        return (
+          booking.passengerName.toLowerCase().includes(keyword) ||
+          booking.passengerPhone.includes(keyword) ||
+          booking.dropoffPhone.includes(keyword)
+        )
       })
+    },
+
+    pendingCount(): number {
+      return this.pendingBookings.length
+    },
+
+    assignedCount(): number {
+      return this.bookingHistory.filter((booking) => booking.status === 'ASSIGNED').length
+    },
+
+    completedCount(): number {
+      return this.bookingHistory.filter((booking) => booking.status === 'COMPLETED').length
+    },
+
+    cancelledCount(): number {
+      return this.bookingHistory.filter((booking) => booking.status === 'CANCELLED').length
     },
   },
   actions: {
-    async fetchBookings() {
+    async fetchMyBookings(params: BookingQuery = {}) {
       try {
         this.loading = true
         this.error = null
-        const response = await apiClient.getMyBookings()
+        const response = await apiClient.getMyBookings(params)
         if (response.data) {
-          this.records = response.data as any
+          this.myBookings = response.data.items ?? []
+          applyPagination(this.myPagination, response.data)
         }
       } catch (err: any) {
-        this.error = err.message || 'Tải danh sách đặt chỗ thất bại'
+        this.error = err.message || 'Tai danh sach dat cho that bai'
       } finally {
         this.loading = false
       }
     },
+
+    async fetchBookingHistory(params: BookingQuery = {}) {
+      try {
+        this.loading = true
+        this.error = null
+        const response = await apiClient.getBookingHistory(params)
+        if (response.data) {
+          this.bookingHistory = response.data.items ?? []
+          applyPagination(this.historyPagination, response.data)
+        }
+      } catch (err: any) {
+        this.error = err.message || 'Tai lich su dat cho that bai'
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchPendingBookings(page = 1, limit = 10) {
+      try {
+        this.loading = true
+        this.error = null
+        const response = await apiClient.getAdminPendingBookings({ page, limit })
+        if (response.data) {
+          this.pendingBookings = response.data.items ?? []
+          applyPagination(this.pendingPagination, response.data)
+        }
+      } catch (err: any) {
+        this.error = err.message || 'Tai danh sach cho gan chuyen that bai'
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchAdminBookings(page = 1, limit = 10) {
+      try {
+        this.loading = true
+        this.error = null
+        const response = await apiClient.getAdminBookings({
+          page,
+          limit,
+          date: this.adminFilters.date || undefined,
+          route: this.adminFilters.route,
+          customer: this.adminFilters.customer || undefined,
+          status: this.adminFilters.status || undefined,
+        })
+        if (response.data) {
+          this.adminBookings = response.data.items ?? []
+          applyPagination(this.adminPagination, response.data)
+        }
+      } catch (err: any) {
+        this.error = err.message || 'Tai danh sach booking quan tri that bai'
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchAdminBookingSummary(date?: string) {
+      try {
+        this.error = null
+        const response = await apiClient.getAdminBookingSummary(date || undefined)
+        if (response.data) {
+          this.summary = response.data
+        }
+      } catch (err: any) {
+        this.error = err.message || 'Tai thong ke booking that bai'
+      }
+    },
+
+    async assignBooking(bookingId: number, tripId: number) {
+      try {
+        this.loading = true
+        this.error = null
+
+        const response = await apiClient.assignBookingToTrip(bookingId, { tripId })
+        const updatedBooking = response.data
+
+        patchBookingInList(this.pendingBookings, updatedBooking)
+        patchBookingInList(this.bookingHistory, updatedBooking)
+        patchBookingInList(this.myBookings, updatedBooking)
+
+        if (updatedBooking.status !== 'PENDING') {
+          this.pendingBookings = this.pendingBookings.filter((item) => item.id !== bookingId)
+          this.pendingPagination.total = Math.max(0, this.pendingPagination.total - 1)
+          this.pendingPagination.totalPages = Math.max(1, Math.ceil(this.pendingPagination.total / this.pendingPagination.limit))
+        }
+
+        if (this.selectedBooking?.id === bookingId) {
+          this.selectedBooking = updatedBooking
+        }
+      } catch (err: any) {
+        this.error = err.message || 'Gan booking vao chuyen that bai'
+      } finally {
+        this.loading = false
+      }
+    },
+
     async confirmBooking(id: number) {
       try {
         this.loading = true
         this.error = null
-        await apiClient.confirmBooking(id)
-        const booking = this.records.find(b => b.id === id)
-        if (booking) {
-          booking.status = 'CONFIRMED'
+        const response = await apiClient.confirmBooking(id)
+        const updatedBooking = response.data
+
+        patchBookingInList(this.pendingBookings, updatedBooking)
+        patchBookingInList(this.bookingHistory, updatedBooking)
+        patchBookingInList(this.myBookings, updatedBooking)
+
+        if (this.selectedBooking?.id === id) {
+          this.selectedBooking = updatedBooking
         }
-        this.selectedBooking = null
       } catch (err: any) {
-        this.error = err.message || 'Xác nhận đặt chỗ thất bại'
+        this.error = err.message || 'Xac nhan dat cho that bai'
       } finally {
         this.loading = false
       }
@@ -85,17 +241,63 @@ export const useBookingStore = defineStore('bookings', {
       try {
         this.loading = true
         this.error = null
-        await apiClient.cancelBooking(id)
-        const booking = this.records.find(b => b.id === id)
-        if (booking) {
-          booking.status = 'CANCELED'
+        const response = await apiClient.cancelBooking(id)
+        const updatedBooking = response.data
+
+        patchBookingInList(this.pendingBookings, updatedBooking)
+        patchBookingInList(this.bookingHistory, updatedBooking)
+        patchBookingInList(this.myBookings, updatedBooking)
+
+        if (updatedBooking.status === 'CANCELLED') {
+          this.pendingBookings = this.pendingBookings.filter((item) => item.id !== id)
         }
-        this.selectedBooking = null
+
+        if (this.selectedBooking?.id === id) {
+          this.selectedBooking = updatedBooking
+        }
       } catch (err: any) {
-        this.error = err.message || 'Hủy đặt chỗ thất bại'
+        this.error = err.message || 'Huy dat cho that bai'
       } finally {
         this.loading = false
       }
+    },
+
+    async completeBooking(id: number) {
+      try {
+        this.loading = true
+        this.error = null
+        const response = await apiClient.completeBooking(id)
+        const updatedBooking = response.data
+
+        patchBookingInList(this.pendingBookings, updatedBooking)
+        patchBookingInList(this.bookingHistory, updatedBooking)
+        patchBookingInList(this.myBookings, updatedBooking)
+
+        if (this.selectedBooking?.id === id) {
+          this.selectedBooking = updatedBooking
+        }
+      } catch (err: any) {
+        this.error = err.message || 'Cap nhat hoan thanh that bai'
+      } finally {
+        this.loading = false
+      }
+    },
+
+    selectBooking(booking: Booking | null) {
+      this.selectedBooking = booking
+    },
+
+    clearFilters() {
+      this.filters.status = ''
+      this.filters.bookingType = ''
+      this.searchText = ''
+    },
+
+    resetAdminFilters() {
+      this.adminFilters.date = ''
+      this.adminFilters.route = 'all'
+      this.adminFilters.customer = ''
+      this.adminFilters.status = ''
     },
   },
 })

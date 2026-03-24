@@ -1,26 +1,27 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useTripStore } from '@/stores/trips'
 import { apiClient } from '@/utils/apiClient'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
 import TextInput from '@/components/ui/TextInput.vue'
 import DateInput from '@/components/ui/DateInput.vue'
-import { routeOptions, pickupByRoute, driverOptions, vehicleOptions } from '@/data/mockData'
+import { routeOptions, pickupByRoute, vehicleOptions } from '@/data/mockData'
 
 const router = useRouter()
 const loading = ref(false)
+const driversLoading = ref(false)
 const error = ref('')
+const driverOptions = ref<Array<{ label: string; value: string }>>([])
 
 const form = ref({
   route: '',
   pickupWard: '',
   departDate: '',
   departTime: '',
-  pricePerSeat: 150000,
-  driver: '',
+  totalSeats: 16,
+  driverId: '',
   vehicle: '',
   notes: '',
 })
@@ -29,22 +30,69 @@ const availablePickups = computed(() => {
   return form.value.route ? pickupByRoute[form.value.route] || [] : []
 })
 
+const selectedDriverLabel = computed(() => {
+  const selected = driverOptions.value.find((driver) => driver.value === form.value.driverId)
+  return selected?.label || 'Chưa chọn'
+})
+
+const parseRoutePlaces = (route: string): { fromPlace: string; toPlace: string } | null => {
+  const [fromPlace, toPlace] = route.split('->').map((part) => part.trim())
+  if (!fromPlace || !toPlace) return null
+  return { fromPlace, toPlace }
+}
+
+const toDepartAtIso = (date: string, time: string): string | null => {
+  const departAt = new Date(`${date}T${time}:00`)
+  if (Number.isNaN(departAt.getTime())) return null
+  return departAt.toISOString()
+}
+
+const loadDrivers = async () => {
+  driversLoading.value = true
+  try {
+    const response = await apiClient.getUsers({ role: 'DRIVER', page: 1, limit: 200 })
+    const users = response.data?.items ?? []
+    driverOptions.value = users.map((driver) => ({
+      label: `${driver.name} (${driver.phone})`,
+      value: String(driver.id),
+    }))
+  } catch (_err) {
+    driverOptions.value = []
+  } finally {
+    driversLoading.value = false
+  }
+}
+
 const handleSubmit = async () => {
   error.value = ''
-  if (!form.value.route || !form.value.pickupWard || !form.value.departDate || !form.value.departTime || !form.value.driver) {
+  if (!form.value.route || !form.value.pickupWard || !form.value.departDate || !form.value.departTime || !form.value.driverId) {
     error.value = 'Vui Lòng Điền Đầy Đủ Các Trường Bắt Buộc'
+    return
+  }
+
+  const routePlaces = parseRoutePlaces(form.value.route)
+  if (!routePlaces) {
+    error.value = 'Tuyến không hợp lệ'
+    return
+  }
+
+  const departAt = toDepartAtIso(form.value.departDate, form.value.departTime)
+  if (!departAt) {
+    error.value = 'Thời gian khởi hành không hợp lệ'
     return
   }
 
   loading.value = true
   try {
     await apiClient.createTrip({
-      fromPlace: form.value.route.split('-')[0],
-      toPlace: form.value.route.split('-')[1],
-      departAt: `${form.value.departDate}T${form.value.departTime}`,
-      pricePerSeat: form.value.pricePerSeat,
-      totalSeats: 16,
-      notes: form.value.notes,
+      driverId: Number(form.value.driverId),
+      fromPlace: routePlaces.fromPlace,
+      fromAddress: form.value.pickupWard,
+      toPlace: routePlaces.toPlace,
+      toAddress: form.value.notes?.trim() || `Điểm trả tại ${routePlaces.toPlace}`,
+      departAt,
+      type: 'SHARED',
+      totalSeats: Number(form.value.totalSeats) || 16,
     })
     router.push('/trips')
   } catch (err: any) {
@@ -57,6 +105,10 @@ const handleSubmit = async () => {
 const handleCancel = () => {
   router.push('/trips')
 }
+
+onMounted(async () => {
+  await loadDrivers()
+})
 </script>
 
 <template>
@@ -109,19 +161,20 @@ const handleCancel = () => {
 
           <!-- Price per Seat -->
           <TextInput
-            :model-value="String(form.pricePerSeat)"
+            :model-value="String(form.totalSeats)"
             type="number"
-            label="Gia tien moi ghe (VND)"
-            placeholder="150000"
-            @update:model-value="form.pricePerSeat = Number($event)"
+            label="Tổng số ghế"
+            placeholder="16"
+            @update:model-value="form.totalSeats = Number($event)"
           />
 
           <!-- Driver & Vehicle -->
           <SelectInput
-            v-model="form.driver"
+            v-model="form.driverId"
             label="Chon tai xe *"
             :options="driverOptions"
             placeholder="Chon tai xe"
+            :disabled="driversLoading"
           />
 
           <SelectInput
@@ -167,12 +220,12 @@ const handleCancel = () => {
             <p class="font-semibold text-gray-900">{{ form.departDate && form.departTime ? `${form.departDate} ${form.departTime}` : 'Chua chon' }}</p>
           </div>
           <div class="pt-3 border-t border-gray-200">
-            <p class="text-gray-600">Gia tien moi ghe</p>
-            <p class="font-bold text-brand-gold text-lg">{{ form.pricePerSeat.toLocaleString('vi-VN') }}đ</p>
+            <p class="text-gray-600">Tổng số ghế</p>
+            <p class="font-bold text-brand-gold text-lg">{{ form.totalSeats }}</p>
           </div>
           <div>
             <p class="text-gray-600">Tai xe</p>
-            <p class="font-semibold text-gray-900">{{ form.driver || 'Chua chon' }}</p>
+            <p class="font-semibold text-gray-900">{{ selectedDriverLabel }}</p>
           </div>
         </div>
       </Card>

@@ -1,13 +1,27 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import MenuDashboardIcon from "../icon/MenuDashboardIcon.vue";
 import MenuTripStatusIcon from "../icon/MenuTripStatusIcon.vue";
-import MenuCreateTripIcon from "../icon/MenuCreateTripIcon.vue";
 import MenuBookingIcon from "../icon/MenuBookingIcon.vue";
+import MenuDriverIcon from "../icon/MenuDriverIcon.vue";
+import MenuStudentIcon from "../icon/MenuStudentIcon.vue";
+import MenuCustomerIcon from "../icon/MenuDriverIcon.vue";
+import { useStudentVerificationStore } from "@/stores/studentVerifications";
+import { useNotificationStore } from "@/stores/notifications";
 
 const router = useRouter();
 const currentRoute = computed(() => router.currentRoute.value.name);
+const studentStore = useStudentVerificationStore();
+const notifStore = useNotificationStore();
+
+onMounted(() => {
+  studentStore.fetchPendingCount();
+});
+
+const newBookingCount = computed(
+  () => notifStore.notifications.filter((n) => n.type === "new_booking" && !n.read).length
+);
 
 const menuItems = [
   {
@@ -27,6 +41,24 @@ const menuItems = [
     label: "Quản Lý Đặt Chỗ",
     icon: MenuBookingIcon,
     path: "/bookings",
+  },
+  {
+    name: "drivers",
+    label: "Quản Lý Tài Xế",
+    icon: MenuDriverIcon,
+    path: "/drivers",
+  },
+  {
+    name: "customers",
+    label: "Quản Lý Khách Hàng",
+    icon: MenuCustomerIcon,
+    path: "/customers",
+  },
+  {
+    name: "student-verifications",
+    label: "Xác Minh Sinh Viên",
+    icon: MenuStudentIcon,
+    path: "/student-verifications",
   },
 ];
 </script>
@@ -72,7 +104,19 @@ const menuItems = [
             :active="currentRoute === item.name"
             class="flex-shrink-0"
           />
-          <span>{{ item.label }}</span>
+          <span class="flex-1">{{ item.label }}</span>
+          <span
+            v-if="item.name === 'student-verifications' && studentStore.pendingCount > 0"
+            class="min-w-[20px] h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold px-1"
+          >
+            {{ studentStore.pendingCount }}
+          </span>
+          <span
+            v-if="item.name === 'bookings' && newBookingCount > 0"
+            class="min-w-[20px] h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold px-1"
+          >
+            {{ newBookingCount }}
+          </span>
         </router-link>
       </div>
     </nav>

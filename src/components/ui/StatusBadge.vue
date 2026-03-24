@@ -13,8 +13,14 @@ const statusConfig: Record<string, { bg: string; text: string; label: string }> 
   'Dang chay': { bg: 'bg-cyan-50', text: 'text-cyan-700', label: 'Dang chay' },
   'Hoan thanh': { bg: 'bg-green-50', text: 'text-green-700', label: 'Hoan thanh' },
   'Đã Hủy': { bg: 'bg-red-50', text: 'text-red-700', label: 'Đã Hủy' },
-  PENDING: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Cho xac nhan' },
+  PENDING: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Cho gan chuyen' },
+  ASSIGNED: { bg: 'bg-sky-50', text: 'text-sky-700', label: 'Da gan chuyen' },
   CONFIRMED: { bg: 'bg-green-50', text: 'text-green-700', label: 'Da xac nhan' },
+  ONGOING: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Dang thuc hien' },
+  COMPLETED: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'Hoan thanh' },
+  CANCELLED: { bg: 'bg-red-50', text: 'text-red-700', label: 'Da huy' },
+
+  // Backward-compatibility fallbacks for legacy literals.
   CANCELED: { bg: 'bg-red-50', text: 'text-red-700', label: 'Đã Hủy' },
   WAITING: { bg: 'bg-orange-50', text: 'text-orange-700', label: 'Cho xac nhan' },
 }

@@ -9,6 +9,8 @@ type FetchTripsParams = {
   toPlace?: string;
   startDate?: string;
   endDate?: string;
+  driver?: string;
+  createUser?: string;
 };
 
 export const useTripStore = defineStore("trips", {
