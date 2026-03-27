@@ -7,39 +7,28 @@ import Button from '@/components/ui/Button.vue'
 import SelectInput from '@/components/ui/SelectInput.vue'
 import TextInput from '@/components/ui/TextInput.vue'
 import DateInput from '@/components/ui/DateInput.vue'
-import { routeOptions, pickupByRoute, vehicleOptions } from '@/data/mockData'
+import type { Route } from '@/types/api'
 
 const router = useRouter()
 const loading = ref(false)
 const driversLoading = ref(false)
 const error = ref('')
 const driverOptions = ref<Array<{ label: string; value: string }>>([])
+const routes = ref<Route[]>([])
 
 const form = ref({
-  route: '',
-  pickupWard: '',
+  routeId: 0,
   departDate: '',
   departTime: '',
   totalSeats: 16,
   driverId: '',
-  vehicle: '',
-  notes: '',
-})
-
-const availablePickups = computed(() => {
-  return form.value.route ? pickupByRoute[form.value.route] || [] : []
+  tripCost: undefined as number | undefined,
 })
 
 const selectedDriverLabel = computed(() => {
   const selected = driverOptions.value.find((driver) => driver.value === form.value.driverId)
   return selected?.label || 'Chưa chọn'
 })
-
-const parseRoutePlaces = (route: string): { fromPlace: string; toPlace: string } | null => {
-  const [fromPlace, toPlace] = route.split('->').map((part) => part.trim())
-  if (!fromPlace || !toPlace) return null
-  return { fromPlace, toPlace }
-}
 
 const toDepartAtIso = (date: string, time: string): string | null => {
   const departAt = new Date(`${date}T${time}:00`)
@@ -63,16 +52,19 @@ const loadDrivers = async () => {
   }
 }
 
+const loadRoutes = async () => {
+  try {
+    const response = await apiClient.getRoutes()
+    routes.value = response.data ?? []
+  } catch (_err) {
+    routes.value = []
+  }
+}
+
 const handleSubmit = async () => {
   error.value = ''
-  if (!form.value.route || !form.value.pickupWard || !form.value.departDate || !form.value.departTime || !form.value.driverId) {
+  if (!form.value.routeId || !form.value.departDate || !form.value.departTime || !form.value.driverId) {
     error.value = 'Vui Lòng Điền Đầy Đủ Các Trường Bắt Buộc'
-    return
-  }
-
-  const routePlaces = parseRoutePlaces(form.value.route)
-  if (!routePlaces) {
-    error.value = 'Tuyến không hợp lệ'
     return
   }
 
@@ -85,14 +77,12 @@ const handleSubmit = async () => {
   loading.value = true
   try {
     await apiClient.createTrip({
+      routeId: form.value.routeId,
       driverId: Number(form.value.driverId),
-      fromPlace: routePlaces.fromPlace,
-      fromAddress: form.value.pickupWard,
-      toPlace: routePlaces.toPlace,
-      toAddress: form.value.notes?.trim() || `Điểm trả tại ${routePlaces.toPlace}`,
       departAt,
       type: 'SHARED',
       totalSeats: Number(form.value.totalSeats) || 16,
+      tripCost: form.value.tripCost,
     })
     router.push('/trips')
   } catch (err: any) {
@@ -107,7 +97,7 @@ const handleCancel = () => {
 }
 
 onMounted(async () => {
-  await loadDrivers()
+  await Promise.all([loadDrivers(), loadRoutes()])
 })
 </script>
 
@@ -129,29 +119,21 @@ onMounted(async () => {
             <h2 class="text-lg font-semibold text-gray-900">Chọn Tuyến</h2>
             <div class="grid grid-cols-2 gap-4">
               <button
-                v-for="r of routeOptions"
-                :key="r"
+                v-for="r of routes"
+                :key="r.id"
                 type="button"
                 :class="[
                   'p-4 border-2 rounded-lg font-medium transition-all',
-                  form.route === r
+                  form.routeId === r.id
                     ? 'border-brand-gold bg-yellow-50 text-brand-brown'
                     : 'border-gray-300 hover:border-gray-400 text-gray-700',
                 ]"
-                @click="form.route = r; form.pickupWard = ''"
+                @click="form.routeId = r.id"
               >
-                {{ r }}
+                {{ r.name }}
               </button>
             </div>
           </div>
-
-          <!-- Pickup Ward Selection -->
-          <SelectInput
-            v-model="form.pickupWard"
-            label="Chọn Phương Đắn Khách *"
-            :options="availablePickups"
-            placeholder="Chọn Phương Đắn Khách"
-          />
 
           <!-- Date & Time -->
           <div class="grid grid-cols-2 gap-4">
@@ -168,7 +150,16 @@ onMounted(async () => {
             @update:model-value="form.totalSeats = Number($event)"
           />
 
-          <!-- Driver & Vehicle -->
+          <!-- Trip Cost -->
+          <TextInput
+            :model-value="form.tripCost !== undefined ? String(form.tripCost) : ''"
+            type="number"
+            label="Giá vé (tùy chọn)"
+            placeholder="VD: 150000"
+            @update:model-value="form.tripCost = $event ? Number($event) : undefined"
+          />
+
+          <!-- Driver -->
           <SelectInput
             v-model="form.driverId"
             label="Chon tai xe *"
@@ -176,24 +167,6 @@ onMounted(async () => {
             placeholder="Chon tai xe"
             :disabled="driversLoading"
           />
-
-          <SelectInput
-            v-model="form.vehicle"
-            label="Chon phuong tien (tuy chon)"
-            :options="vehicleOptions"
-            placeholder="Chon phuong tien"
-          />
-
-          <!-- Notes -->
-          <div class="flex flex-col gap-1">
-            <label class="text-sm font-medium text-brand-brown">Ghi chu them</label>
-            <textarea
-              v-model="form.notes"
-              :rows="4"
-              placeholder="Nhap ghi chu them (tuy chon)..."
-              class="px-4 py-2 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-brand-gold focus:ring-2 focus:ring-brand-gold focus:ring-opacity-30"
-            />
-          </div>
 
           <!-- Actions -->
           <div class="flex gap-3 pt-6">
@@ -209,11 +182,7 @@ onMounted(async () => {
         <div class="space-y-3 text-sm">
           <div>
             <p class="text-gray-600">Tuyen</p>
-            <p class="font-semibold text-gray-900">{{ form.route || 'Chua chon' }}</p>
-          </div>
-          <div>
-            <p class="text-gray-600">Phuong don</p>
-            <p class="font-semibold text-gray-900">{{ form.pickupWard || 'Chua chon' }}</p>
+            <p class="font-semibold text-gray-900">{{ form.routeId ? (routes.find(r => r.id === form.routeId)?.name ?? '--') : 'Chua chon' }}</p>
           </div>
           <div>
             <p class="text-gray-600">Gio khoi hanh</p>

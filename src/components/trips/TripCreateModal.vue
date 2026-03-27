@@ -2,10 +2,10 @@
 import { computed, reactive, ref, watch } from "vue";
 import districtAPI from "@/services/districtAPI";
 import { apiClient } from "@/utils/apiClient";
-import type { District, TripType } from "@/types/api";
+import type { District, Route, TripType } from "@/types/api";
 
 interface CreatePayload {
-  route: string;
+  routeId: number;
   driverId: number;
   fromAddress: string;
   toAddress: string;
@@ -18,7 +18,7 @@ interface CreatePayload {
 interface Props {
   modelValue: boolean;
   loading: boolean;
-  routeOptions: string[];
+  routeOptions: Route[];
 }
 
 const props = defineProps<Props>();
@@ -29,7 +29,7 @@ const emit = defineEmits<{
 }>();
 
 const form = reactive({
-  route: "",
+  routeId: 0 as number,
   driverId: "",
   district: "",
   ward: "",
@@ -71,22 +71,9 @@ const normalizeText = (value: string): string =>
     .toLowerCase()
     .trim();
 
-const routeKey = (route: string): string => {
-  const value = normalizeText(route).replace(/\s+/g, "");
-  if (value === "dn-hue" || value === "danang->hue") return "dn-hue";
-  if (value === "hue-dn" || value === "hue->danang") return "hue-dn";
-  return value;
-};
-
-const getRouteLabel = (route: string): string => {
-  const key = routeKey(route);
-  if (key === "dn-hue") return "Đà Nẵng → Huế";
-  if (key === "hue-dn") return "Huế → Đà Nẵng";
-  return route.replace(/\s*->\s*/g, " → ");
-};
-
-const getSourceCityByRoute = (route: string): "danang" | "hue" => {
-  return routeKey(route) === "hue-dn" ? "hue" : "danang";
+const getSourceCityByRouteId = (routeId: number): "danang" | "hue" => {
+  const route = props.routeOptions.find((r) => r.id === routeId);
+  return route?.code === 2 ? "hue" : "danang";
 };
 
 const getTodayIsoDate = (): string => {
@@ -128,14 +115,14 @@ const mapDistrictNamesToDistrictObjects = (districtNames: string[]): District[] 
     .filter((district): district is District => Boolean(district));
 };
 
-const loadDistrictsForRoute = async (route: string) => {
+const loadDistrictsForRouteId = async (routeId: number) => {
   districtLoading.value = true;
   form.district = "";
   form.ward = "";
   wardOptions.value = [];
 
   try {
-    const sourceCity = getSourceCityByRoute(route);
+    const sourceCity = getSourceCityByRouteId(routeId);
     await ensureAllDistrictsLoaded();
 
     const byCityResult =
@@ -172,9 +159,9 @@ const loadWardsByDistrictCode = async (districtCode: number) => {
 };
 
 watch(
-  () => form.route,
-  async (route) => {
-    if (!route) {
+  () => form.routeId,
+  async (routeId) => {
+    if (!routeId) {
       districtOptions.value = [];
       wardOptions.value = [];
       form.district = "";
@@ -182,7 +169,7 @@ watch(
       return;
     }
 
-    await loadDistrictsForRoute(route);
+    await loadDistrictsForRouteId(routeId);
   },
 );
 
@@ -214,7 +201,7 @@ const closeModal = () => {
 };
 
 const resetForm = () => {
-  form.route = props.routeOptions[0] ?? "";
+  form.routeId = props.routeOptions[0]?.id ?? 0;
   form.driverId = "";
   form.district = "";
   form.ward = "";
@@ -238,7 +225,7 @@ watch(
 );
 
 const submitCreate = () => {
-  if (!form.route || !form.driverId || !form.district || !form.ward || !form.toAddress || !form.date || !form.time) {
+  if (!form.routeId || !form.driverId || !form.district || !form.ward || !form.toAddress || !form.date || !form.time) {
     window.alert("Vui lòng điền đầy đủ thông tin tạo chuyến.");
     return;
   }
@@ -249,7 +236,7 @@ const submitCreate = () => {
   }
 
   emit("submit", {
-    route: form.route,
+    routeId: form.routeId,
     driverId: Number(form.driverId),
     fromAddress: buildFromAddress(),
     toAddress: form.toAddress.trim(),
@@ -305,11 +292,12 @@ const submitCreate = () => {
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Tuyến</label>
               <select
-                v-model="form.route"
+                v-model="form.routeId"
                 class="w-full h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
               >
-                <option v-for="route in props.routeOptions" :key="route" :value="route">
-                  {{ getRouteLabel(route) }}
+                <option :value="0" disabled>Chọn tuyến</option>
+                <option v-for="route in props.routeOptions" :key="route.id" :value="route.id">
+                  {{ route.name }}
                 </option>
               </select>
             </div>

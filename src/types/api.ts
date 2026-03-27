@@ -6,10 +6,17 @@ export type BookingType = 'SHARED' | 'PRIVATE'
 export type TripStatus = 'SCHEDULED' | 'ONGOING' | 'COMPLETED' | 'CANCELLED'
 export type BookingStatus = 'PENDING' | 'ASSIGNED' | 'CONFIRMED' | 'ONGOING' | 'CANCELLED' | 'COMPLETED'
 export type PaymentType = 'CASH' | 'MOMO' | 'ZALOPAY' | 'CARD'
-export type SeatLockStatus = 'LOCKED' | 'CONSUMED' | 'EXPIRED' | 'RELEASED'
+export type PaymentStatus = 'UNPAID' | 'PAID' | 'REFUNDED'
 export type StudentStatus = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED'
 
 // Models
+export interface Route {
+  id: number
+  code: number
+  name: string
+  fromCity: string
+  toCity: string
+}
 export interface User {
   id: number
   name: string
@@ -19,7 +26,6 @@ export interface User {
   avatar: string | null
   rating: number | null
   loyaltyPoints: number
-  createdAt: string
   createUser?: string
   createDate?: string
   updateUser?: string | null
@@ -48,24 +54,20 @@ export interface Vehicle {
   model: string
   plate: string
   seatsTotal: number
-  createdAt: string
 }
 
 export interface Trip {
   id: number
   driverId: number
   driver?: Pick<User, 'id' | 'name' | 'rating'>
-  fromPlace: string
-  fromAddress: string
-  toPlace: string
-  toAddress: string
+  routeId: number
+  route?: Route
   departAt: string
   type: TripType
   totalSeats: number
   availableSeats: number
   tripCost: number | null
   status: TripStatus
-  createdAt: string
   createUser?: string
   createDate?: string
   updateUser?: string | null
@@ -77,7 +79,9 @@ export interface Booking {
   userId: number
   tripId: number | null
   user?: Pick<User, 'id' | 'name' | 'phone'>
-  trip?: Pick<Trip, 'id' | 'fromPlace' | 'toPlace' | 'departAt'> | null
+  trip?: Pick<Trip, 'id' | 'routeId' | 'departAt'> | null
+  routeId: number
+  route?: Route
   passengerName: string
   passengerPhone: string
   pickupDistrict: string
@@ -88,13 +92,13 @@ export interface Booking {
   numberOfPassengers: number
   assignedByAdminPhone: string | null
   status: BookingStatus
+  paymentStatus: PaymentStatus
   paymentMethodId: number | null
   amount: number | null
   dropoffAddress: string | null
   dropoffLat: number | null
   dropoffLng: number | null
-  dropoffTime: string | null
-  createdAt: string
+  estimatedDepartAt: string
   createUser?: string
   createDate?: string
   updateUser?: string | null
@@ -116,9 +120,12 @@ export interface AdminDriver {
   rating: number | null
   accountStatus: AccountStatus
   loyaltyPoints: number
-  createdAt: string
+  createDate: string
   vehicle: DriverVehicleSummary | null
   totalTrips: number
+  citizenId: string | null
+  dateOfBirth: string | null
+  contractNumber: string | null
 }
 
 export interface DriverSummary {
@@ -138,7 +145,7 @@ export interface CustomerAdminItem {
   isStudent: boolean
   studentCardImage: string | null
   totalBookings: number
-  createdAt: string
+  createDate: string
 }
 
 export interface CustomerAdminSummary {
@@ -165,7 +172,7 @@ export interface CreateDriverResult {
     avatar: string | null
     accountStatus: AccountStatus
     loyaltyPoints: number
-    createdAt: string
+    createDate: string
   }
   vehicle: DriverVehicleSummary
 }
@@ -192,6 +199,8 @@ export interface RegisterDto {
   name: string
   phone: string
   password: string
+  dateOfBirth: string
+  gmail?: string
 }
 
 export interface LoginDto {
@@ -216,13 +225,11 @@ export interface UpdateVehicleDto {
 }
 
 export interface CreateTripDto {
-  fromPlace: string
-  fromAddress: string
-  toPlace: string
-  toAddress: string
+  routeId: number
   departAt: string
   type: TripType
   totalSeats: number
+  tripCost?: number
   driverId?: number
   vehicleId?: number
 }
@@ -233,6 +240,7 @@ export interface UpdateTripDto {
 }
 
 export interface CreateBookingDto {
+  routeId: number
   passengerName: string
   passengerPhone: string
   pickupDistrict: string
@@ -241,6 +249,7 @@ export interface CreateBookingDto {
   dropoffPhone: string
   bookingType: BookingType
   numberOfPassengers: number
+  estimatedDepartAt: string // ISO datetime - when customer wants to depart
 }
 
 export interface AssignBookingDto {
@@ -251,7 +260,7 @@ export interface AdminBookingListQuery {
   page?: number
   limit?: number
   date?: string
-  route?: 'all' | 'dn-hue' | 'hue-dn'
+  routeId?: number
   customer?: string
   status?: BookingStatus
 }
@@ -270,6 +279,9 @@ export interface CreateDriverDto {
   vehicleModel: string
   vehiclePlate: string
   vehicleSeats: number
+  citizenId: string
+  dateOfBirth: string
+  contractNumber?: string
 }
 
 export interface UpdateDriverDto {

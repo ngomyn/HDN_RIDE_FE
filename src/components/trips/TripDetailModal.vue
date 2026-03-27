@@ -101,7 +101,7 @@ const getDepartTime = (departAt?: string): string => {
             <div class="col-span-2 bg-gray-50 rounded p-3">
               <p class="text-gray-500">Tuyến</p>
               <p class="font-semibold text-[#4A2A12]">
-                {{ props.trip.fromPlace }} → {{ props.trip.toPlace }}
+                {{ props.trip.route?.name ?? `Tuyến ${props.trip.routeId}` }}
               </p>
             </div>
 

@@ -5,8 +5,7 @@ import type { TripStatusRecord, TripExecutionStatus } from "@/types/models";
 type FetchTripsParams = {
   page?: number;
   limit?: number;
-  fromPlace?: string;
-  toPlace?: string;
+  routeId?: number;
   startDate?: string;
   endDate?: string;
   driver?: string;

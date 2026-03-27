@@ -39,6 +39,9 @@ const createForm = reactive({
   vehicleModel: '',
   vehiclePlate: '',
   vehicleSeats: 7,
+  citizenId: '',
+  dateOfBirth: '',
+  contractNumber: '',
 })
 
 const createFormErrors = reactive({
@@ -47,6 +50,8 @@ const createFormErrors = reactive({
   password: '',
   vehicleModel: '',
   vehiclePlate: '',
+  citizenId: '',
+  dateOfBirth: '',
 })
 
 const editForm = reactive({ id: 0, name: '', avatar: '', rating: '' })
@@ -91,11 +96,16 @@ const resetCreateForm = () => {
   createForm.vehicleModel = ''
   createForm.vehiclePlate = ''
   createForm.vehicleSeats = 7
+  createForm.citizenId = ''
+  createForm.dateOfBirth = ''
+  createForm.contractNumber = ''
   createFormErrors.name = ''
   createFormErrors.phone = ''
   createFormErrors.password = ''
   createFormErrors.vehicleModel = ''
   createFormErrors.vehiclePlate = ''
+  createFormErrors.citizenId = ''
+  createFormErrors.dateOfBirth = ''
 }
 
 const validateCreateForm = (): boolean => {
@@ -104,6 +114,14 @@ const validateCreateForm = (): boolean => {
   createFormErrors.phone = createForm.phone.trim() ? '' : 'So dien thoai la bat buoc'
   createFormErrors.password = createForm.password ? '' : 'Mat khau la bat buoc'
   createFormErrors.vehicleModel = createForm.vehicleModel.trim() ? '' : 'Model xe la bat buoc'
+  createFormErrors.vehiclePlate = createForm.vehiclePlate.trim() ? '' : 'Bien so xe la bat buoc'
+  createFormErrors.citizenId = createForm.citizenId.trim() ? '' : 'So CCCD la bat buoc'
+  createFormErrors.dateOfBirth = createForm.dateOfBirth.trim() ? '' : 'Ngay sinh la bat buoc'
+
+  if (createForm.citizenId.trim() && !/^[0-9]{12}$/.test(createForm.citizenId.trim())) {
+    createFormErrors.citizenId = 'CCCD phai co dung 12 chu so'
+    isValid = false
+  }
   createFormErrors.vehiclePlate = createForm.vehiclePlate.trim() ? '' : 'Bien so xe la bat buoc'
 
   if (createForm.phone.trim() && !/^\d{10}$/.test(createForm.phone.trim().replace(/\s/g, ''))) {
@@ -137,6 +155,9 @@ const submitCreate = async () => {
     vehicleModel: createForm.vehicleModel.trim(),
     vehiclePlate: createForm.vehiclePlate.trim(),
     vehicleSeats: Number(createForm.vehicleSeats),
+    citizenId: createForm.citizenId.trim(),
+    dateOfBirth: createForm.dateOfBirth.trim(),
+    contractNumber: createForm.contractNumber.trim() || undefined,
   }
 
   await driverStore.createDriver(payload)
@@ -467,6 +488,23 @@ const pageNumbers = () => {
           </div>
           <div>
             <TextInput v-model="createForm.avatar" label="Avatar URL" placeholder="https://..." />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 class="text-base font-semibold text-[#4A2A12] mb-3 pb-2 border-b border-gray-200">Thong tin phap ly</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <TextInput v-model="createForm.citizenId" label="So CCCD *" placeholder="012345678901" />
+            <p v-if="createFormErrors.citizenId" class="text-xs text-red-600 mt-1.5">{{ createFormErrors.citizenId }}</p>
+          </div>
+          <div>
+            <TextInput v-model="createForm.dateOfBirth" type="date" label="Ngay sinh *" />
+            <p v-if="createFormErrors.dateOfBirth" class="text-xs text-red-600 mt-1.5">{{ createFormErrors.dateOfBirth }}</p>
+          </div>
+          <div class="md:col-span-2">
+            <TextInput v-model="createForm.contractNumber" label="Ma hop dong" placeholder="HD-2024-001 (tuy chon)" />
           </div>
         </div>
       </div>

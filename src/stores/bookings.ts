@@ -57,7 +57,7 @@ export const useBookingStore = defineStore('bookings', {
 
     adminFilters: {
       date: '',
-      route: 'all' as 'all' | 'dn-hue' | 'hue-dn',
+      routeId: '' as number | '',
       customer: '',
       status: '' as '' | BookingStatus,
     },
@@ -162,7 +162,7 @@ export const useBookingStore = defineStore('bookings', {
           page,
           limit,
           date: this.adminFilters.date || undefined,
-          route: this.adminFilters.route,
+          routeId: this.adminFilters.routeId !== '' ? (this.adminFilters.routeId as number) : undefined,
           customer: this.adminFilters.customer || undefined,
           status: this.adminFilters.status || undefined,
         })
@@ -295,7 +295,7 @@ export const useBookingStore = defineStore('bookings', {
 
     resetAdminFilters() {
       this.adminFilters.date = ''
-      this.adminFilters.route = 'all'
+      this.adminFilters.routeId = ''
       this.adminFilters.customer = ''
       this.adminFilters.status = ''
     },

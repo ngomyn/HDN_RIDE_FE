@@ -13,6 +13,7 @@ import type {
   CustomerAdminSummary,
   DriverSummary,
   Role,
+  Route,
   User,
   Trip,
   Booking,
@@ -149,8 +150,16 @@ export const apiClient = {
     return handleResponse<ApiResponse<Vehicle[]>>(res)
   },
 
+  // Route endpoints
+  async getRoutes() {
+    const res = await fetch(`${API_BASE_URL}/routes`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<Route[]>>(res)
+  },
+
   // Trip endpoints
-  async searchTrips(params: { fromPlace?: string; toPlace?: string; startDate?: string; endDate?: string; driver?: string; createUser?: string; page?: number; limit?: number }) {
+  async searchTrips(params: { routeId?: number; startDate?: string; endDate?: string; driver?: string; createUser?: string; page?: number; limit?: number }) {
     const query = new URLSearchParams()
     Object.entries(params).forEach(([key, value]) => {
       if (value) query.append(key, String(value))

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
 import districtAPI from "@/services/districtAPI";
-import type { District } from "@/types/api";
+import type { District, Route } from "@/types/api";
 
 interface TripSummary {
   id: number;
@@ -25,7 +25,7 @@ interface DuplicatePayload {
 interface Props {
   modelValue: boolean;
   trip: TripSummary | null;
-  routeOptions: string[];
+  routeOptions: Route[];
   drivers: string[];
 }
 
@@ -59,29 +59,10 @@ const normalizeText = (value: string): string =>
     .toLowerCase()
     .trim();
 
-const routeKey = (route: string): string => {
-  const value = normalizeText(route).replace(/\s+/g, "");
-  if (value === "dn-hue" || value === "danang->hue") return "dn-hue";
-  if (value === "hue-dn" || value === "hue->danang") return "hue-dn";
-  return value;
-};
-
-const getRouteLabel = (route: string): string => {
-  const key = routeKey(route);
-  if (key === "dn-hue") return "Đà Nẵng → Huế";
-  if (key === "hue-dn") return "Huế → Đà Nẵng";
-  return route.replace(/\s*->\s*/g, " → ");
-};
-
-const getSourceCityByRoute = (route: string): "danang" | "hue" => {
-  return routeKey(route) === "hue-dn" ? "hue" : "danang";
-};
-
-const findRouteSource = (route: string): string => {
-  const found = props.routeOptions.find(
-    (option) => routeKey(option) === routeKey(route),
-  );
-  return found ?? route;
+const getSourceCityByRouteName = (routeName: string): "danang" | "hue" => {
+  const normalized = normalizeText(routeName);
+  if (normalized.includes("hue") && normalized.startsWith("hue")) return "hue";
+  return "danang";
 };
 
 const getDistrictsByProvinceFallback = (city: "danang" | "hue"): District[] => {
@@ -115,7 +96,7 @@ const loadDistrictsForRoute = async (route: string) => {
   wardOptions.value = [];
 
   try {
-    const sourceCity = getSourceCityByRoute(route);
+    const sourceCity = getSourceCityByRouteName(route);
     await ensureAllDistrictsLoaded();
 
     const byCityResult =
@@ -199,7 +180,9 @@ const parsePrice = (value: string): number => {
 const initForm = () => {
   if (!props.trip) return;
 
-  form.route = findRouteSource(props.trip.route);
+  const matchedRoute = props.routeOptions.find((r) => r.name === props.trip!.route)
+    ?? props.routeOptions[0];
+  form.route = matchedRoute?.name ?? props.trip.route;
   form.district = "";
   form.ward = "";
   form.date = "";
@@ -266,8 +249,8 @@ const submitDuplicate = () => {
                 v-model="form.route"
                 class="w-full h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
               >
-                <option v-for="route in props.routeOptions" :key="route" :value="route">
-                  {{ getRouteLabel(route) }}
+                <option v-for="route in props.routeOptions" :key="route.id" :value="route.name">
+                  {{ route.name }}
                 </option>
               </select>
             </div>

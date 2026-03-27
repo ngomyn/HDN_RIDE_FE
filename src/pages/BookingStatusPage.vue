@@ -51,13 +51,13 @@ const resultTo = computed(() => {
 })
 
 const getRouteLabel = (booking: Booking): string => {
-  if (!booking.trip?.fromPlace || !booking.trip?.toPlace) return '--'
-  return `${booking.trip.fromPlace} → ${booking.trip.toPlace}`
+  if (booking.route?.name) return booking.route.name
+  return '--'
 }
 
 const getRouteKey = (booking: Booking): 'dn-hue' | 'hue-dn' | 'unknown' => {
-  if (booking.trip?.fromPlace === 'Đà Nẵng' && booking.trip?.toPlace === 'Huế') return 'dn-hue'
-  if (booking.trip?.fromPlace === 'Huế' && booking.trip?.toPlace === 'Đà Nẵng') return 'hue-dn'
+  if (booking.route?.code === 1) return 'dn-hue'
+  if (booking.route?.code === 2) return 'hue-dn'
   return 'unknown'
 }
 
@@ -89,12 +89,12 @@ const getStatusBadgeClass = (status: Booking['status']): string => {
 }
 
 const formatBookingDate = (booking: Booking): string => {
-  const date = booking.trip?.departAt || booking.createdAt
+  const date = booking.trip?.departAt || booking.createDate
   return formatDateDisplay(date)
 }
 
 const formatBookingTime = (booking: Booking): string => {
-  const source = booking.trip?.departAt || booking.createdAt
+  const source = booking.trip?.departAt || booking.createDate
   const date = new Date(source)
   if (Number.isNaN(date.getTime())) return '--:--'
   const hour = String(date.getHours()).padStart(2, '0')
@@ -122,7 +122,7 @@ const loadTripOptions = async () => {
 
     const items = response.data?.items ?? []
     tripOptions.value = items.map((trip) => ({
-      label: `#${trip.id} | ${trip.fromPlace} -> ${trip.toPlace} | ${formatDateDisplay(trip.departAt)} | Còn ${trip.availableSeats} ghế`,
+      label: `#${trip.id} | ${trip.route?.name ?? `Route ${trip.routeId}`} | ${formatDateDisplay(trip.departAt)} | Còn ${trip.availableSeats} ghế`,
       value: String(trip.id),
     }))
   } catch (_error) {
@@ -228,12 +228,12 @@ const handleCancel = async (booking?: Booking) => {
         </div>
 
         <select
-          v-model="bookingStore.adminFilters.route"
+          v-model="bookingStore.adminFilters.routeId"
           class="w-[220px] h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
         >
-          <option value="all">Tất cả</option>
-          <option value="dn-hue">Đà Nẵng → Huế</option>
-          <option value="hue-dn">Huế → Đà Nẵng</option>
+          <option value="">Tất cả tuyến</option>
+          <option :value="1">Đà Nẵng → Huế</option>
+          <option :value="2">Huế → Đà Nẵng</option>
         </select>
 
         <div class="relative">

@@ -7,9 +7,8 @@ import TripDetailModal from "@/components/trips/TripDetailModal.vue";
 import TripDuplicateModal from "@/components/trips/TripDuplicateModal.vue";
 import TripEditModal from "@/components/trips/TripEditModal.vue";
 import { useTripStore } from "@/stores/trips";
-import { routeOptions } from "@/data/mockData";
 import { apiClient } from "@/utils/apiClient";
-import type { Trip, TripType } from "@/types/api";
+import type { Route, Trip, TripType } from "@/types/api";
 import type { TripExecutionStatus } from "@/types/models";
 import { formatDateDisplay } from "@/utils/format";
 import {
@@ -28,6 +27,7 @@ interface UiTrip {
   id: number;
   route: string;
   routeName: string;
+  routeId: number;
   date: string;
   time: string;
   driver: string;
@@ -49,7 +49,7 @@ interface DuplicateTripPayload {
 }
 
 interface CreateTripPayload {
-  route: string;
+  routeId: number;
   driverId: number;
   fromAddress: string;
   toAddress: string;
@@ -62,17 +62,19 @@ interface CreateTripPayload {
 const tripStore = useTripStore();
 const { records, loading, error, pagination } = storeToRefs(tripStore);
 
+const routes = ref<Route[]>([]);
+
 const pageSize = 10;
 const currentPage = ref(1);
 
 const filterDate = ref("");
-const filterRoute = ref("all");
+const filterRouteId = ref<number | "">("");
 const filterDriver = ref("");
 const filterCreator = ref("");
 
 const appliedFilters = reactive({
   date: "",
-  route: "all",
+  routeId: "" as number | "",
   driver: "",
   creator: "",
 });
@@ -104,22 +106,8 @@ const normalizeText = (value: string): string =>
     .toLowerCase()
     .trim();
 
-const routeKey = (route: string): string => {
-  const value = normalizeText(route).replace(/\s+/g, "");
-  if (value === "dn-hue" || value === "danang->hue") return "dn-hue";
-  if (value === "hue-dn" || value === "hue->danang") return "hue-dn";
-  return value;
-};
-
-const getRouteLabel = (route: string): string => {
-  const key = routeKey(route);
-  if (key === "dn-hue") return "Đà Nẵng → Huế";
-  if (key === "hue-dn") return "Huế → Đà Nẵng";
-  return route.replace(/\s*->\s*/g, " → ");
-};
-
-const getRouteBadgeClass = (route: string): string =>
-  routeKey(route) === "dn-hue"
+const getRouteBadgeClass = (routeId: number): string =>
+  routeId === 1
     ? "bg-[#F2B233]/10 text-[#F2B233]"
     : "bg-[#4A2A12]/10 text-[#4A2A12]";
 
@@ -194,12 +182,10 @@ const toLocalTime = (value: string): string => {
 
 const normalizedTrips = computed<UiTrip[]>(() => {
   return records.value?.map((item: any) => {
-    const route =
-      typeof item.route === "string" && item.route
-        ? item.route
-        : item.fromPlace && item.toPlace
-          ? `${item.fromPlace} -> ${item.toPlace}`
-          : "";
+    const routeName =
+      item.route?.name ??
+      (item.fromPlace && item.toPlace ? `${item.fromPlace} -> ${item.toPlace}` : "");
+    const routeId = Number(item.routeId ?? item.route?.id ?? 0);
 
     const status: TripExecutionStatus = normalizeTripStatus(item.status);
 
@@ -219,8 +205,9 @@ const normalizedTrips = computed<UiTrip[]>(() => {
 
     return {
       id: Number(item.id ?? 0),
-      route,
-      routeName: getRouteLabel(route),
+      route: routeName,
+      routeName,
+      routeId,
       date,
       time,
       driver:
@@ -242,10 +229,10 @@ const normalizedTrips = computed<UiTrip[]>(() => {
 });
 
 const routeFilterOptions = computed(() => [
-  { value: "all", label: "Tất cả" },
-  ...routeOptions.map((route) => ({
-    value: route,
-    label: getRouteLabel(route),
+  { value: "", label: "Tất cả" },
+  ...routes.value.map((route) => ({
+    value: route.id,
+    label: route.name,
   })),
 ]);
 
@@ -255,12 +242,7 @@ const drivers = computed(() => {
   ).filter((driver) => Boolean(driver) && driver !== "--");
 });
 
-const findRouteSource = (route: string): string => {
-  const found = routeOptions.find(
-    (option) => routeKey(option) === routeKey(route),
-  );
-  return found ?? route;
-};
+const findRouteSource = (route: string): string => route;
 
 const filteredTrips = computed(() => normalizedTrips.value);
 
@@ -332,46 +314,17 @@ const todayCompletedCount = computed(
 const toSearchDateStart = (date: string): string => `${date}T00:00:00`;
 const toSearchDateEnd = (date: string): string => `${date}T23:59:59`;
 
-const getRouteSearchPlaces = (
-  route: string,
-): { fromPlace?: string; toPlace?: string } => {
-  if (!route || route === "all") {
-    return {};
-  }
-
-  const source = findRouteSource(route);
-  const key = routeKey(source);
-
-  if (key === "dn-hue") {
-    return { fromPlace: "Đà Nẵng", toPlace: "Huế" };
-  }
-
-  if (key === "hue-dn") {
-    return { fromPlace: "Huế", toPlace: "Đà Nẵng" };
-  }
-
-  const [fromPlace, toPlace] = source.split("->").map((part) => part.trim());
-
-  if (!fromPlace || !toPlace) {
-    return {};
-  }
-
-  return { fromPlace, toPlace };
-};
-
 const buildSearchParams = (
   page: number,
-  route: string,
+  routeId: number | "",
   date: string,
   driver: string,
   creator: string,
 ) => {
-  const routePlaces = getRouteSearchPlaces(route);
-
   return {
     page,
     limit: pageSize,
-    ...routePlaces,
+    routeId: routeId !== "" ? routeId : undefined,
     startDate: date ? toSearchDateStart(date) : undefined,
     endDate: date ? toSearchDateEnd(date) : undefined,
     driver: driver || undefined,
@@ -381,7 +334,7 @@ const buildSearchParams = (
 
 const handleSearch = async () => {
   appliedFilters.date = filterDate.value;
-  appliedFilters.route = filterRoute.value;
+  appliedFilters.routeId = filterRouteId.value;
   appliedFilters.driver = filterDriver.value;
   appliedFilters.creator = filterCreator.value;
   currentPage.value = 1;
@@ -389,7 +342,7 @@ const handleSearch = async () => {
   await tripStore.fetchTrips(
     buildSearchParams(
       1,
-      appliedFilters.route,
+      appliedFilters.routeId,
       appliedFilters.date,
       appliedFilters.driver,
       appliedFilters.creator,
@@ -399,7 +352,7 @@ const handleSearch = async () => {
 
 const handleReset = async () => {
   filterDate.value = "";
-  filterRoute.value = "all";
+  filterRouteId.value = "";
   filterDriver.value = "";
   filterCreator.value = "";
   await handleSearch();
@@ -412,7 +365,7 @@ const goToPage = async (page: number) => {
   await tripStore.fetchTrips(
     buildSearchParams(
       page,
-      appliedFilters.route,
+      appliedFilters.routeId,
       appliedFilters.date,
       appliedFilters.driver,
       appliedFilters.creator,
@@ -441,7 +394,7 @@ const refreshCurrentPage = async () => {
   await tripStore.fetchTrips(
     buildSearchParams(
       safePage,
-      appliedFilters.route,
+      appliedFilters.routeId,
       appliedFilters.date,
       appliedFilters.driver,
       appliedFilters.creator,
@@ -462,22 +415,13 @@ const handleCreateClick = () => {
 };
 
 const handleCreateSubmit = async (payload: CreateTripPayload) => {
-  const routePlaces = getRouteSearchPlaces(payload.route);
-  if (!routePlaces.fromPlace || !routePlaces.toPlace) {
-    window.alert("Không xác định được tuyến đi/đến.");
-    return;
-  }
-
   createLoading.value = true;
   actionError.value = "";
 
   try {
     await apiClient.createTrip({
       driverId: payload.driverId,
-      fromPlace: routePlaces.fromPlace,
-      fromAddress: payload.fromAddress,
-      toPlace: routePlaces.toPlace,
-      toAddress: payload.toAddress,
+      routeId: payload.routeId,
       departAt: toDepartAtIso(payload.date, payload.time),
       type: payload.type,
       totalSeats: Number(payload.totalSeats),
@@ -601,6 +545,12 @@ watch(showDuplicateModal, (isOpen) => {
 });
 
 onMounted(async () => {
+  try {
+    const routeResponse = await apiClient.getRoutes();
+    routes.value = routeResponse.data ?? [];
+  } catch (_err) {
+    routes.value = [];
+  }
   await handleSearch();
 });
 </script>
@@ -659,12 +609,12 @@ onMounted(async () => {
         </div>
 
         <select
-          v-model="filterRoute"
+          v-model="filterRouteId"
           class="w-[220px] h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
         >
           <option
             v-for="option in routeFilterOptions"
-            :key="option.value"
+            :key="String(option.value)"
             :value="option.value"
           >
             {{ option.label }}
@@ -776,7 +726,7 @@ onMounted(async () => {
                 <span
                   :class="[
                     'inline-block px-2 py-1 rounded text-xs font-medium',
-                    getRouteBadgeClass(trip.route),
+                    getRouteBadgeClass(trip.routeId),
                   ]"
                 >
                   {{ trip.routeName }}
@@ -905,14 +855,14 @@ onMounted(async () => {
     <TripCreateModal
       v-model="showCreateModal"
       :loading="createLoading"
-      :route-options="routeOptions"
+      :route-options="routes"
       @submit="handleCreateSubmit"
     />
 
     <TripDuplicateModal
       v-model="showDuplicateModal"
       :trip="selectedTrip"
-      :route-options="routeOptions"
+      :route-options="routes"
       :drivers="drivers"
       @submit="handleDuplicateSubmit"
     />
