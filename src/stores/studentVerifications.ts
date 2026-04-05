@@ -41,14 +41,14 @@ export const useStudentVerificationStore = defineStore('studentVerifications', (
     }
   }
 
-  async function approveStudent(userId: number) {
-    await apiClient.verifyStudentCard(userId, { action: 'APPROVE' })
+  async function approveStudent(verificationId: number) {
+    await apiClient.verifyStudentCard(verificationId, { action: 'APPROVE' })
     await fetchVerifications(currentPage.value)
     await fetchPendingCount()
   }
 
-  async function rejectStudent(userId: number) {
-    await apiClient.verifyStudentCard(userId, { action: 'REJECT' })
+  async function rejectStudent(verificationId: number, rejectReason?: string) {
+    await apiClient.verifyStudentCard(verificationId, { action: 'REJECT', rejectReason })
     await fetchVerifications(currentPage.value)
     await fetchPendingCount()
   }

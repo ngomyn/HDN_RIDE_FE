@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { apiClient } from '@/utils/apiClient'
-import type { Booking, BookingStatus, PaginatedResponse, AdminBookingSummary } from '@/types/api'
+import type { Booking, BookingStatus, PaginatedResponse, AdminBookingSummary, PaymentStatus } from '@/types/api'
 
 type BookingQuery = {
   status?: BookingStatus
@@ -33,7 +33,10 @@ const patchBookingInList = (list: Booking[], updatedBooking: Booking) => {
   const index = list.findIndex((item) => item.id === updatedBooking.id)
   if (index >= 0) {
     list.splice(index, 1, updatedBooking)
+    return true
   }
+
+  return false
 }
 
 export const useBookingStore = defineStore('bookings', {
@@ -56,9 +59,13 @@ export const useBookingStore = defineStore('bookings', {
     } as AdminBookingSummary,
 
     adminFilters: {
-      date: '',
-      routeId: '' as number | '',
-      customer: '',
+      bookingCode: '',
+      startDate: '',
+      endDate: '',
+      routeId: '' as string,
+      phone: '',
+      seatFrom: '' as string,
+      seatTo: '' as string,
       status: '' as '' | BookingStatus,
     },
 
@@ -161,9 +168,13 @@ export const useBookingStore = defineStore('bookings', {
         const response = await apiClient.getAdminBookings({
           page,
           limit,
-          date: this.adminFilters.date || undefined,
-          routeId: this.adminFilters.routeId !== '' ? (this.adminFilters.routeId as number) : undefined,
-          customer: this.adminFilters.customer || undefined,
+          bookingCode: this.adminFilters.bookingCode || undefined,
+          startDate: this.adminFilters.startDate || undefined,
+          endDate: this.adminFilters.endDate || undefined,
+          routeId: this.adminFilters.routeId !== '' ? Number(this.adminFilters.routeId) : undefined,
+          phone: this.adminFilters.phone || undefined,
+          seatFrom: this.adminFilters.seatFrom !== '' ? Number(this.adminFilters.seatFrom) : undefined,
+          seatTo: this.adminFilters.seatTo !== '' ? Number(this.adminFilters.seatTo) : undefined,
           status: this.adminFilters.status || undefined,
         })
         if (response.data) {
@@ -189,7 +200,7 @@ export const useBookingStore = defineStore('bookings', {
       }
     },
 
-    async assignBooking(bookingId: number, tripId: number) {
+    async assignBooking(bookingId: string, tripId: string) {
       try {
         this.loading = true
         this.error = null
@@ -199,6 +210,7 @@ export const useBookingStore = defineStore('bookings', {
 
         patchBookingInList(this.pendingBookings, updatedBooking)
         patchBookingInList(this.bookingHistory, updatedBooking)
+        patchBookingInList(this.adminBookings, updatedBooking)
         patchBookingInList(this.myBookings, updatedBooking)
 
         if (updatedBooking.status !== 'PENDING') {
@@ -217,7 +229,39 @@ export const useBookingStore = defineStore('bookings', {
       }
     },
 
-    async confirmBooking(id: number) {
+    async removeBookingFromTrip(bookingId: string) {
+      try {
+        this.loading = true
+        this.error = null
+
+        const response = await apiClient.removeBookingFromTrip(bookingId)
+        const updatedBooking = response.data
+
+        const pendingFound = patchBookingInList(this.pendingBookings, updatedBooking)
+        patchBookingInList(this.bookingHistory, updatedBooking)
+        patchBookingInList(this.adminBookings, updatedBooking)
+        patchBookingInList(this.myBookings, updatedBooking)
+
+        if (!pendingFound && updatedBooking.status === 'PENDING' && updatedBooking.tripId === null) {
+          this.pendingBookings = [updatedBooking, ...this.pendingBookings]
+          this.pendingPagination.total += 1
+          this.pendingPagination.totalPages = Math.max(1, Math.ceil(this.pendingPagination.total / this.pendingPagination.limit))
+        }
+
+        if (this.selectedBooking?.id === bookingId) {
+          this.selectedBooking = updatedBooking
+        }
+
+        return updatedBooking
+      } catch (err: any) {
+        this.error = err.message || 'Go booking khoi chuyen that bai'
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async confirmBooking(id: string) {
       try {
         this.loading = true
         this.error = null
@@ -226,6 +270,7 @@ export const useBookingStore = defineStore('bookings', {
 
         patchBookingInList(this.pendingBookings, updatedBooking)
         patchBookingInList(this.bookingHistory, updatedBooking)
+        patchBookingInList(this.adminBookings, updatedBooking)
         patchBookingInList(this.myBookings, updatedBooking)
 
         if (this.selectedBooking?.id === id) {
@@ -237,15 +282,41 @@ export const useBookingStore = defineStore('bookings', {
         this.loading = false
       }
     },
-    async cancelBooking(id: number) {
+    async confirmAdminBooking(id: string) {
       try {
         this.loading = true
         this.error = null
-        const response = await apiClient.cancelBooking(id)
+        const response = await apiClient.adminConfirmBooking(id)
         const updatedBooking = response.data
 
         patchBookingInList(this.pendingBookings, updatedBooking)
         patchBookingInList(this.bookingHistory, updatedBooking)
+        patchBookingInList(this.adminBookings, updatedBooking)
+        patchBookingInList(this.myBookings, updatedBooking)
+
+        if (this.selectedBooking?.id === id) {
+          this.selectedBooking = updatedBooking
+        }
+
+        return updatedBooking
+      } catch (err: any) {
+        this.error = err.message || 'Xac nhan dat cho that bai'
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async cancelBooking(id: string, cancelReason?: string) {
+      try {
+        this.loading = true
+        this.error = null
+        const response = await apiClient.cancelBooking(id, cancelReason)
+        const updatedBooking = response.data
+
+        patchBookingInList(this.pendingBookings, updatedBooking)
+        patchBookingInList(this.bookingHistory, updatedBooking)
+        patchBookingInList(this.adminBookings, updatedBooking)
         patchBookingInList(this.myBookings, updatedBooking)
 
         if (updatedBooking.status === 'CANCELLED') {
@@ -262,7 +333,61 @@ export const useBookingStore = defineStore('bookings', {
       }
     },
 
-    async completeBooking(id: number) {
+    async cancelAdminBooking(id: string, cancelReason: string) {
+      try {
+        this.loading = true
+        this.error = null
+        const response = await apiClient.adminCancelBooking(id, cancelReason)
+        const updatedBooking = response.data
+
+        patchBookingInList(this.pendingBookings, updatedBooking)
+        patchBookingInList(this.bookingHistory, updatedBooking)
+        patchBookingInList(this.adminBookings, updatedBooking)
+        patchBookingInList(this.myBookings, updatedBooking)
+
+        if (updatedBooking.status === 'CANCELLED') {
+          this.pendingBookings = this.pendingBookings.filter((item) => item.id !== id)
+        }
+
+        if (this.selectedBooking?.id === id) {
+          this.selectedBooking = updatedBooking
+        }
+
+        return updatedBooking
+      } catch (err: any) {
+        this.error = err.message || 'Huy dat cho that bai'
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async updateBookingPaymentStatus(id: string, paymentStatus: PaymentStatus) {
+      try {
+        this.loading = true
+        this.error = null
+        const response = await apiClient.updateBookingPaymentStatus(id, { paymentStatus })
+        const updatedBooking = response.data
+
+        patchBookingInList(this.pendingBookings, updatedBooking)
+        patchBookingInList(this.bookingHistory, updatedBooking)
+        patchBookingInList(this.adminBookings, updatedBooking)
+        patchBookingInList(this.myBookings, updatedBooking)
+
+        if (this.selectedBooking?.id === id) {
+          this.selectedBooking = updatedBooking
+        }
+
+        return updatedBooking
+      } catch (err: any) {
+        this.error = err.message || 'Cap nhat trang thai thanh toan that bai'
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async completeBooking(id: string) {
       try {
         this.loading = true
         this.error = null
@@ -294,9 +419,13 @@ export const useBookingStore = defineStore('bookings', {
     },
 
     resetAdminFilters() {
-      this.adminFilters.date = ''
+      this.adminFilters.bookingCode = ''
+      this.adminFilters.startDate = ''
+      this.adminFilters.endDate = ''
       this.adminFilters.routeId = ''
-      this.adminFilters.customer = ''
+      this.adminFilters.phone = ''
+      this.adminFilters.seatFrom = ''
+      this.adminFilters.seatTo = ''
       this.adminFilters.status = ''
     },
   },

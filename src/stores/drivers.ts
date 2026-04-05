@@ -3,6 +3,7 @@ import { apiClient } from '@/utils/apiClient'
 import type {
   AccountStatus,
   AdminDriver,
+  AdminDriverListQuery,
   CreateDriverDto,
   DriverSummary,
   PaginatedResponse,
@@ -15,6 +16,21 @@ type DriverPagination = {
   total: number
   totalPages: number
 }
+
+type DriverFilters = Required<Pick<AdminDriverListQuery, 'name' | 'phone' | 'plate' | 'completedTripsFrom' | 'completedTripsTo' | 'joinedFrom' | 'joinedTo'>> & {
+  accountStatus: '' | AccountStatus
+}
+
+const createFilters = (): DriverFilters => ({
+  accountStatus: '',
+  name: '',
+  phone: '',
+  plate: '',
+  completedTripsFrom: '',
+  completedTripsTo: '',
+  joinedFrom: '',
+  joinedTo: '',
+})
 
 const createPagination = (): DriverPagination => ({
   page: 1,
@@ -41,10 +57,7 @@ export const useDriverStore = defineStore('drivers', {
   state: () => ({
     records: [] as AdminDriver[],
     selectedDriver: null as AdminDriver | null,
-    filters: {
-      status: '' as '' | AccountStatus,
-      search: '' as string,
-    },
+    filters: createFilters(),
     pagination: createPagination(),
     summary: null as DriverSummary | null,
     loading: false,
@@ -62,8 +75,14 @@ export const useDriverStore = defineStore('drivers', {
         this.error = null
 
         const response = await apiClient.getAdminDrivers({
-          status: this.filters.status || undefined,
-          search: this.filters.search || undefined,
+          accountStatus: this.filters.accountStatus || undefined,
+          name: this.filters.name || undefined,
+          phone: this.filters.phone || undefined,
+          plate: this.filters.plate || undefined,
+          completedTripsFrom: this.filters.completedTripsFrom || undefined,
+          completedTripsTo: this.filters.completedTripsTo || undefined,
+          joinedFrom: this.filters.joinedFrom || undefined,
+          joinedTo: this.filters.joinedTo || undefined,
           page,
           limit,
         })
@@ -104,7 +123,7 @@ export const useDriverStore = defineStore('drivers', {
       }
     },
 
-    async updateDriver(driverId: number, payload: UpdateDriverDto) {
+    async updateDriver(driverId: string, payload: UpdateDriverDto) {
       try {
         this.loading = true
         this.error = null
@@ -124,7 +143,7 @@ export const useDriverStore = defineStore('drivers', {
       }
     },
 
-    async updateDriverStatus(driverId: number, accountStatus: AccountStatus) {
+    async updateDriverStatus(driverId: string, accountStatus: AccountStatus) {
       try {
         this.loading = true
         this.error = null
@@ -150,11 +169,18 @@ export const useDriverStore = defineStore('drivers', {
     },
 
     setStatusFilter(status: '' | AccountStatus) {
-      this.filters.status = status
+      this.filters.accountStatus = status
     },
 
-    setSearchFilter(search: string) {
-      this.filters.search = search
+    setFilters(filters: Partial<DriverFilters>) {
+      this.filters = {
+        ...this.filters,
+        ...filters,
+      }
+    },
+
+    resetFilters() {
+      this.filters = createFilters()
     },
 
     selectDriver(driver: AdminDriver | null) {

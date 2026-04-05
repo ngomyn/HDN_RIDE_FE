@@ -4,7 +4,7 @@ import districtAPI from "@/services/districtAPI";
 import type { District, Route } from "@/types/api";
 
 interface TripSummary {
-  id: number;
+  id: string;
   route: string;
   time: string;
   price: number;

@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
-import districtAPI from "@/services/districtAPI";
-import { apiClient } from "@/utils/apiClient";
-import type { District, Route, TripType } from "@/types/api";
+import { computed, reactive, watch, ref } from "vue";
+import type {
+  AdminDriver,
+  PriceConfig,
+  Route,
+  TripType,
+  VehicleType,
+} from "@/types/api";
 
 interface CreatePayload {
   routeId: number;
-  driverId: number;
-  fromAddress: string;
-  toAddress: string;
+  driverId: string;
   date: string;
   time: string;
   totalSeats: number;
+  availableSeats: number;
   type: TripType;
 }
 
@@ -19,6 +22,8 @@ interface Props {
   modelValue: boolean;
   loading: boolean;
   routeOptions: Route[];
+  driverOptions: AdminDriver[];
+  pricingConfigs: PriceConfig[];
 }
 
 const props = defineProps<Props>();
@@ -27,54 +32,83 @@ const emit = defineEmits<{
   "update:modelValue": [value: boolean];
   submit: [payload: CreatePayload];
 }>();
+const open = ref(false)
 
 const form = reactive({
   routeId: 0 as number,
   driverId: "",
-  district: "",
-  ward: "",
-  toAddress: "",
   date: "",
   time: "",
-  totalSeats: 1,
+  totalSeats: 0,
+  availableSeats: 0,
   type: "SHARED" as TripType,
 });
 
-const districtOptions = ref<District[]>([]);
-const wardOptions = ref<string[]>([]);
-const districtLoading = ref(false);
-const wardsLoading = ref(false);
-const allDistricts = ref<District[]>([]);
-const driverLoading = ref(false);
-const driverOptions = ref<Array<{ label: string; value: string }>>([]);
+const formatCurrency = (value: number): string =>
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(value);
 
-const loadDriverOptions = async () => {
-  driverLoading.value = true;
-  try {
-    const response = await apiClient.getUsers({ role: "DRIVER", page: 1, limit: 200 });
-    const items = response.data?.items ?? [];
-    driverOptions.value = items.map((driver) => ({
-      label: `${driver.name} (${driver.phone})`,
-      value: String(driver.id),
-    }));
-  } catch (_error) {
-    driverOptions.value = [];
-  } finally {
-    driverLoading.value = false;
+const selectedDriver = computed(() => {
+  return (
+    props.driverOptions.find((driver) => driver.id === form.driverId) ?? null
+  );
+});
+
+const resolveVehicleTypeFromSeats = (
+  seatsTotal?: number | null,
+): VehicleType | null => {
+  if (seatsTotal === 4) return "SEAT_4";
+  if (seatsTotal === 7) return "SEAT_7";
+  if (seatsTotal === 9) return "SEAT_9";
+  if (seatsTotal === 16) return "SEAT_16";
+  return null;
+};
+
+const derivedSeatCount = computed(
+  () => selectedDriver.value?.vehicle?.seatsTotal ?? 0,
+);
+const derivedVehicleType = computed(() => {
+  return (
+    selectedDriver.value?.vehicle?.vehicleType ??
+    resolveVehicleTypeFromSeats(selectedDriver.value?.vehicle?.seatsTotal)
+  );
+});
+
+const availableSeatsMax = computed(() => Math.max(form.totalSeats - 1, 0));
+
+const farePreview = computed(() => {
+  if (!form.routeId || !form.type || !form.totalSeats) {
+    return {
+      text: "Chọn tuyến, tài xế và loại chuyến để xem giá.",
+      tone: "muted" as const,
+    };
   }
-};
 
-const normalizeText = (value: string): string =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
+  const config = props.pricingConfigs.find(
+    (item) =>
+      item.routeId === form.routeId &&
+      item.pricingType === form.type &&
+      item.vehicleType ===
+        (form.type === "PRIVATE" ? derivedVehicleType.value : null),
+  );
 
-const getSourceCityByRouteId = (routeId: number): "danang" | "hue" => {
-  const route = props.routeOptions.find((r) => r.id === routeId);
-  return route?.code === 2 ? "hue" : "danang";
-};
+  if (!config) {
+    return {
+      text: "Chưa có cấu hình giá phù hợp cho chuyến này.",
+      tone: "warning" as const,
+    };
+  }
+
+  const unit = form.type === "PRIVATE" ? "giá/xe" : "giá/chỗ";
+
+  return {
+    text: `${formatCurrency(config.price)} / ${unit}`,
+    tone: "ready" as const,
+  };
+});
 
 const getTodayIsoDate = (): string => {
   const now = new Date();
@@ -91,111 +125,6 @@ const getNowTime = (): string => {
   return `${hour}:${minute}`;
 };
 
-const getDistrictsByProvinceFallback = (city: "danang" | "hue"): District[] => {
-  const provinceKeyword = city === "hue" ? "hue" : "da nang";
-  return allDistricts.value.filter((district) =>
-    normalizeText(district.province_name).includes(provinceKeyword),
-  );
-};
-
-const ensureAllDistrictsLoaded = async () => {
-  if (allDistricts.value.length > 0) return;
-
-  const result = await districtAPI.getAllDistricts();
-  allDistricts.value = result.data ?? [];
-};
-
-const mapDistrictNamesToDistrictObjects = (districtNames: string[]): District[] => {
-  const districtMap = new Map(
-    allDistricts.value.map((district) => [normalizeText(district.name), district]),
-  );
-
-  return districtNames
-    .map((name) => districtMap.get(normalizeText(name)))
-    .filter((district): district is District => Boolean(district));
-};
-
-const loadDistrictsForRouteId = async (routeId: number) => {
-  districtLoading.value = true;
-  form.district = "";
-  form.ward = "";
-  wardOptions.value = [];
-
-  try {
-    const sourceCity = getSourceCityByRouteId(routeId);
-    await ensureAllDistrictsLoaded();
-
-    const byCityResult =
-      sourceCity === "hue"
-        ? await districtAPI.getHueDistricts()
-        : await districtAPI.getDaNangDistricts();
-
-    const districtNames = byCityResult.data ?? [];
-    const mappedDistricts = mapDistrictNamesToDistrictObjects(districtNames);
-
-    districtOptions.value =
-      mappedDistricts.length > 0
-        ? mappedDistricts
-        : getDistrictsByProvinceFallback(sourceCity);
-  } catch (_error) {
-    districtOptions.value = [];
-  } finally {
-    districtLoading.value = false;
-  }
-};
-
-const loadWardsByDistrictCode = async (districtCode: number) => {
-  wardsLoading.value = true;
-  form.ward = "";
-
-  try {
-    const result = await districtAPI.getDistrictWards(districtCode);
-    wardOptions.value = result.data ?? [];
-  } catch (_error) {
-    wardOptions.value = [];
-  } finally {
-    wardsLoading.value = false;
-  }
-};
-
-watch(
-  () => form.routeId,
-  async (routeId) => {
-    if (!routeId) {
-      districtOptions.value = [];
-      wardOptions.value = [];
-      form.district = "";
-      form.ward = "";
-      return;
-    }
-
-    await loadDistrictsForRouteId(routeId);
-  },
-);
-
-watch(
-  () => form.district,
-  async (districtCode) => {
-    if (!districtCode) {
-      wardOptions.value = [];
-      form.ward = "";
-      return;
-    }
-
-    await loadWardsByDistrictCode(Number(districtCode));
-  },
-);
-
-const selectedDistrict = computed(() =>
-  districtOptions.value.find((district) => String(district.code) === form.district),
-);
-
-const buildFromAddress = (): string => {
-  if (!form.ward) return "";
-  if (!selectedDistrict.value) return form.ward;
-  return `${form.ward}, ${selectedDistrict.value.name}`;
-};
-
 const closeModal = () => {
   emit("update:modelValue", false);
 };
@@ -203,46 +132,79 @@ const closeModal = () => {
 const resetForm = () => {
   form.routeId = props.routeOptions[0]?.id ?? 0;
   form.driverId = "";
-  form.district = "";
-  form.ward = "";
-  form.toAddress = "";
   form.date = getTodayIsoDate();
   form.time = getNowTime();
-  form.totalSeats = 1;
+  form.totalSeats = 0;
+  form.availableSeats = 0;
   form.type = "SHARED";
-  districtOptions.value = [];
-  wardOptions.value = [];
 };
+
+const selectHour = (h: number) => {
+  form.time = `${String(h - 1).padStart(2, "0")}:00`
+  open.value = false
+}
+watch(
+  () => form.driverId,
+  () => {
+    form.totalSeats = derivedSeatCount.value;
+    form.availableSeats = availableSeatsMax.value;
+  },
+);
+
+watch(
+  () => form.totalSeats,
+  (totalSeats) => {
+    if (!totalSeats || totalSeats < 1) {
+      form.availableSeats = 0;
+      return;
+    }
+
+    if (form.availableSeats > availableSeatsMax.value) {
+      form.availableSeats = availableSeatsMax.value;
+    }
+
+    if (form.availableSeats < 0) {
+      form.availableSeats = 0;
+    }
+  },
+);
 
 watch(
   () => props.modelValue,
-  async (isOpen) => {
+  (isOpen) => {
     if (!isOpen) return;
-
     resetForm();
-    await loadDriverOptions();
   },
 );
 
 const submitCreate = () => {
-  if (!form.routeId || !form.driverId || !form.district || !form.ward || !form.toAddress || !form.date || !form.time) {
+  if (!form.routeId || !form.driverId || !form.date || !form.time) {
     window.alert("Vui lòng điền đầy đủ thông tin tạo chuyến.");
     return;
   }
 
   if (!form.totalSeats || form.totalSeats < 1) {
-    window.alert("Tổng số ghế phải lớn hơn 0.");
+    window.alert("Tài xế chưa có xe hoạt động để suy ra tổng số ghế.");
+    return;
+  }
+
+  if (
+    form.availableSeats < 0 ||
+    form.availableSeats > availableSeatsMax.value
+  ) {
+    window.alert(
+      "Số ghế trống phải nằm trong khoảng từ 0 đến tổng số ghế trừ 1.",
+    );
     return;
   }
 
   emit("submit", {
     routeId: form.routeId,
-    driverId: Number(form.driverId),
-    fromAddress: buildFromAddress(),
-    toAddress: form.toAddress.trim(),
+    driverId: form.driverId,
     date: form.date,
     time: form.time,
     totalSeats: Number(form.totalSeats),
+    availableSeats: Number(form.availableSeats),
     type: form.type,
   });
 };
@@ -258,7 +220,7 @@ const submitCreate = () => {
       >
         <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-[460px]">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold text-[#4A2A12]">Tạo chuyến</h2>
+            <h2 class="text-xl font-bold text-[#4A2A12]">Thêm chuyến xe</h2>
             <button
               class="p-1.5 hover:bg-gray-200 rounded transition-colors"
               title="Đóng"
@@ -270,87 +232,42 @@ const submitCreate = () => {
 
           <form class="space-y-4" @submit.prevent="submitCreate">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Tài xế</label>
-              <select
-                v-model="form.driverId"
-                class="w-full h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
-                :disabled="driverLoading || driverOptions.length === 0"
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Tuyến</label
               >
-                <option value="">
-                  {{ driverLoading ? "Đang tải tài xế..." : "Chọn tài xế" }}
-                </option>
-                <option
-                  v-for="driver in driverOptions"
-                  :key="driver.value"
-                  :value="driver.value"
-                >
-                  {{ driver.label }}
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Tuyến</label>
               <select
                 v-model="form.routeId"
                 class="w-full h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
               >
                 <option :value="0" disabled>Chọn tuyến</option>
-                <option v-for="route in props.routeOptions" :key="route.id" :value="route.id">
+                <option
+                  v-for="route in props.routeOptions"
+                  :key="route.id"
+                  :value="route.id"
+                >
                   {{ route.name }}
                 </option>
               </select>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Quận/Huyện đón</label>
-              <select
-                v-model="form.district"
-                class="w-full h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
-                :disabled="districtLoading || districtOptions.length === 0"
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Loại chuyến</label
               >
-                <option value="">
-                  {{ districtLoading ? "Đang tải quận/huyện..." : "Chọn quận/huyện" }}
-                </option>
-                <option
-                  v-for="district in districtOptions"
-                  :key="district.code"
-                  :value="String(district.code)"
-                >
-                  {{ district.name }}
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Phường/xã đón</label>
               <select
-                v-model="form.ward"
+                v-model="form.type"
                 class="w-full h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
-                :disabled="!form.district || wardsLoading || wardOptions.length === 0"
               >
-                <option value="">
-                  {{ wardsLoading ? "Đang tải phường/xã..." : "Chọn phường/xã" }}
-                </option>
-                <option v-for="ward in wardOptions" :key="ward" :value="ward">
-                  {{ ward }}
-                </option>
+                <option value="SHARED">Ghép xe</option>
+                <option value="PRIVATE">Bao xe</option>
               </select>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ trả khách</label>
-              <input
-                v-model="form.toAddress"
-                type="text"
-                placeholder="Nhập địa chỉ trả khách"
-                class="w-full h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
-              />
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Ngày đi</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Ngày khởi hành</label
+                >
                 <input
                   v-model="form.date"
                   type="date"
@@ -358,37 +275,113 @@ const submitCreate = () => {
                 />
               </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Giờ đi</label>
-                <input
-                  v-model="form.time"
-                  type="time"
-                  class="w-full h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
-                />
+              <div class="relative">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Giờ khởi hành
+                </label>
+
+                <!-- Trigger -->
+                <div
+                  @click="open = !open"
+                  class="w-full h-11 px-4 border border-gray-300 rounded-lg flex items-center justify-between cursor-pointer"
+                >
+                  {{ form.time || "Chọn giờ" }}
+                  <span>▼</span>
+                </div>
+
+                <!-- Dropdown -->
+                <div
+                  v-if="open"
+                  class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                >
+                  <div
+                    v-for="h in 24"
+                    :key="h"
+                    @click="selectHour(h)"
+                    class="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  >
+                    {{ String(h - 1).padStart(2, "0") }}:00
+                  </div>
+                </div>
               </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Tài xế</label
+              >
+              <select
+                v-model="form.driverId"
+                class="w-full h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
+                :disabled="props.driverOptions.length === 0"
+              >
+                <option value="">
+                  {{
+                    props.driverOptions.length === 0
+                      ? "Chưa có tài xế khả dụng"
+                      : "Chọn tài xế"
+                  }}
+                </option>
+                <option
+                  v-for="driver in props.driverOptions"
+                  :key="driver.id"
+                  :value="driver.id"
+                >
+                  {{ driver.name }} ({{ driver.phone }})
+                </option>
+              </select>
+              <p class="mt-2 text-xs text-gray-500">
+                Tổng số ghế sẽ tự lấy theo xe hoạt động của tài xế đã chọn.
+              </p>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Loại chuyến</label>
-                <select
-                  v-model="form.type"
-                  class="w-full h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Tổng số ghế</label
                 >
-                  <option value="SHARED">Ghép chuyến</option>
-                  <option value="PRIVATE">Riêng</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Tổng số ghế</label>
                 <input
                   v-model.number="form.totalSeats"
                   type="number"
                   min="1"
-                  class="w-full h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
+                  disabled
+                  class="w-full h-11 px-4 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
                 />
               </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Số ghế trống</label
+                >
+                <input
+                  v-model.number="form.availableSeats"
+                  type="number"
+                  min="0"
+                  :max="availableSeatsMax"
+                  class="w-full h-11 px-4 border border-gray-300 rounded-lg focus:outline-none focus:border-[#F2B233] transition-colors"
+                />
+                <p class="mt-2 text-xs text-gray-500">
+                  Tối đa {{ availableSeatsMax }} ghế trống.
+                </p>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-[#EFE7DE] bg-[#FCFAF7] p-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-gray-400">
+                Giá áp dụng
+              </p>
+              <p
+                class="mt-2 text-sm font-semibold"
+                :class="
+                  farePreview.tone === 'ready'
+                    ? 'text-[#4A2A12]'
+                    : farePreview.tone === 'warning'
+                      ? 'text-amber-600'
+                      : 'text-gray-500'
+                "
+              >
+                {{ farePreview.text }}
+              </p>
             </div>
 
             <div class="flex justify-end gap-2 pt-2">

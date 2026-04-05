@@ -1,16 +1,9 @@
 import { defineStore } from "pinia";
 import { apiClient } from "@/utils/apiClient";
+import type { TripSearchQuery } from "@/types/api";
 import type { TripStatusRecord, TripExecutionStatus } from "@/types/models";
 
-type FetchTripsParams = {
-  page?: number;
-  limit?: number;
-  routeId?: number;
-  startDate?: string;
-  endDate?: string;
-  driver?: string;
-  createUser?: string;
-};
+type FetchTripsParams = TripSearchQuery;
 
 export const useTripStore = defineStore("trips", {
   state: () => ({
@@ -22,8 +15,13 @@ export const useTripStore = defineStore("trips", {
     },
     filters: {
       route: "",
+      type: "",
       startDate: "",
       endDate: "",
+      seatFrom: "",
+      seatTo: "",
+      tripCostFrom: "",
+      tripCostTo: "",
       driver: "",
       admin: "",
       status: "" as string,
@@ -92,7 +90,7 @@ export const useTripStore = defineStore("trips", {
         this.loading = false;
       }
     },
-    async updateTripStatus(id: number, newStatus: TripExecutionStatus) {
+    async updateTripStatus(id: string, newStatus: TripExecutionStatus) {
       try {
         this.loading = true;
         this.error = null;
@@ -107,7 +105,7 @@ export const useTripStore = defineStore("trips", {
         this.loading = false;
       }
     },
-    async deleteTrip(id: number) {
+    async deleteTrip(id: string) {
       try {
         this.loading = true;
         this.error = null;

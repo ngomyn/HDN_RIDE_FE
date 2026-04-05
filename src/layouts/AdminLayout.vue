@@ -1,21 +1,30 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import HeaderBar from '@/components/layout/HeaderBar.vue'
+
+const sidebarOpen = ref(true)
+const toggleSidebar = () => {
+  sidebarOpen.value = !sidebarOpen.value
+}
 </script>
 
 <template>
-  <div class="flex h-screen bg-gray-100">
-    <!-- Sidebar -->
-    <Sidebar />
+  <div class="flex h-screen overflow-hidden bg-[#F5F5F5]">
+    <Sidebar :is-open="sidebarOpen" @toggle="toggleSidebar" />
 
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col ml-[260px]">
-      <!-- Header -->
-      <HeaderBar />
+    <div
+      :class="[
+        'flex-1 flex flex-col overflow-hidden transition-all duration-300',
+        sidebarOpen ? 'ml-[260px]' : 'ml-[80px]',
+      ]"
+    >
+      <HeaderBar :sidebar-open="sidebarOpen" />
 
-      <!-- Page Content -->
-      <main class="flex-1 overflow-y-auto pt-20 pb-6 px-6">
-        <slot />
+      <main class="flex-1 overflow-y-auto pt-20">
+        <div class="min-h-full px-6 pb-6">
+          <slot />
+        </div>
       </main>
     </div>
   </div>

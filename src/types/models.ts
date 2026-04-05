@@ -1,3 +1,5 @@
+import type { Role } from './api'
+
 export type TripExecutionStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'CANCELED'
 
 export type BookingStatus = 'PENDING' | 'ASSIGNED' | 'CONFIRMED' | 'ONGOING' | 'CANCELLED' | 'COMPLETED'
@@ -13,6 +15,7 @@ export interface NotificationItem {
 export interface AdminProfile {
   fullName: string
   role: string
+  roleCode: Role | null
   email: string
   phone: string
 }
@@ -50,7 +53,7 @@ export interface UpcomingTrip {
 }
 
 export interface TripStatusRecord {
-  id: number
+  id: string
   route: string
   date: string
   time: string
@@ -63,7 +66,7 @@ export interface TripStatusRecord {
 }
 
 export interface BookingStatusRecord {
-  id: number
+  id: string
   route: string
   date: string
   time: string

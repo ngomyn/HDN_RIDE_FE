@@ -16,6 +16,7 @@ const showImageModal = ref(false)
 const selectedUser = ref<StudentVerification | null>(null)
 const actionLoading = ref(false)
 const actionError = ref<string | null>(null)
+const rejectReason = ref('')
 
 const statusOptions = [
   { label: 'Tất cả', value: '' },
@@ -26,10 +27,10 @@ const statusOptions = [
 
 const columns = [
   { key: 'id', label: 'ID', width: '70px' },
-  { key: 'name', label: 'Họ tên' },
-  { key: 'phone', label: 'SĐT' },
-  { key: 'studentStatus', label: 'Trạng thái' },
-  { key: 'createdAt', label: 'Ngày nộp' },
+  { key: 'user.name', label: 'Họ tên' },
+  { key: 'user.phone', label: 'SĐT' },
+  { key: 'status', label: 'Trạng thái' },
+  { key: 'submittedAt', label: 'Ngày nộp' },
 ]
 
 onMounted(() => {
@@ -49,6 +50,7 @@ const handlePageChange = (page: number) => {
 const openImageModal = (user: StudentVerification) => {
   selectedUser.value = user
   actionError.value = null
+  rejectReason.value = ''
   showImageModal.value = true
 }
 
@@ -71,7 +73,7 @@ const handleReject = async () => {
   actionLoading.value = true
   actionError.value = null
   try {
-    await store.rejectStudent(selectedUser.value.id)
+    await store.rejectStudent(selectedUser.value.id, rejectReason.value || undefined)
     showImageModal.value = false
   } catch (e: unknown) {
     actionError.value = e instanceof Error ? e.message : 'Có lỗi xảy ra'
@@ -139,10 +141,10 @@ const formatDate = (iso: string) => {
           :data="store.records"
           @row-click="openImageModal"
         >
-          <template #cell-studentStatus="{ value }">
+          <template #cell-status="{ value }">
             <StatusBadge :status="value" />
           </template>
-          <template #cell-createdAt="{ value }">
+          <template #cell-submittedAt="{ value }">
             {{ formatDate(value) }}
           </template>
         </Table>
@@ -168,20 +170,20 @@ const formatDate = (iso: string) => {
         <!-- User info -->
         <div class="bg-gray-50 rounded-lg p-4 flex items-center gap-4">
           <div class="w-12 h-12 rounded-full bg-brand-gold text-brand-brown font-bold flex items-center justify-center text-xl">
-            {{ selectedUser.name.charAt(0) }}
+            {{ selectedUser.user?.name?.charAt(0) ?? '?' }}
           </div>
           <div>
-            <p class="font-semibold text-gray-900">{{ selectedUser.name }}</p>
-            <p class="text-sm text-gray-500">{{ selectedUser.phone }}</p>
-            <StatusBadge :status="selectedUser.studentStatus" class="mt-1" />
+            <p class="font-semibold text-gray-900">{{ selectedUser.user?.name }}</p>
+            <p class="text-sm text-gray-500">{{ selectedUser.user?.phone }}</p>
+            <StatusBadge :status="selectedUser.status" class="mt-1" />
           </div>
         </div>
 
         <!-- Student card image -->
         <div class="border rounded-lg overflow-hidden">
           <img
-            v-if="selectedUser.studentCardImage"
-            :src="selectedUser.studentCardImage"
+            v-if="selectedUser.image"
+            :src="selectedUser.image"
             alt="Thẻ sinh viên"
             class="w-full object-contain max-h-96"
           />
@@ -190,29 +192,46 @@ const formatDate = (iso: string) => {
           </div>
         </div>
 
+        <!-- Reject reason -->
+        <div v-if="selectedUser.rejectReason" class="bg-red-50 border border-red-200 rounded-lg p-3">
+          <p class="text-sm font-medium text-red-700">Lý do từ chối:</p>
+          <p class="text-sm text-red-600 mt-1">{{ selectedUser.rejectReason }}</p>
+        </div>
+
         <!-- Error -->
         <p v-if="actionError" class="text-sm text-red-600">{{ actionError }}</p>
 
         <!-- Actions -->
         <div
-          v-if="selectedUser.studentStatus === 'PENDING'"
-          class="flex gap-3 justify-end"
+          v-if="selectedUser.status === 'PENDING'"
+          class="space-y-3"
         >
-          <Button
-            variant="secondary"
-            :disabled="actionLoading"
-            @click="handleReject"
-          >
-            Từ Chối
-          </Button>
-          <Button
-            variant="primary"
-            :disabled="actionLoading"
-            :loading="actionLoading"
-            @click="handleApprove"
-          >
-            Xác Nhận Sinh Viên
-          </Button>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Lý do từ chối (tùy chọn)</label>
+            <input
+              v-model="rejectReason"
+              type="text"
+              placeholder="Nhập lý do nếu từ chối..."
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+            />
+          </div>
+          <div class="flex gap-3 justify-end">
+            <Button
+              variant="secondary"
+              :disabled="actionLoading"
+              @click="handleReject"
+            >
+              Từ Chối
+            </Button>
+            <Button
+              variant="primary"
+              :disabled="actionLoading"
+              :loading="actionLoading"
+              @click="handleApprove"
+            >
+              Xác Nhận Sinh Viên
+            </Button>
+          </div>
         </div>
         <p
           v-else

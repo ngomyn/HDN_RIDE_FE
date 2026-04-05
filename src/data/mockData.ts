@@ -104,7 +104,7 @@ export const upcomingTripsSeed: UpcomingTrip[] = [
 
 export const tripRecordsSeed: TripStatusRecord[] = [
   {
-    id: 1,
+    id: '1',
     route: 'Da Nang -> Hue',
     date: '2026-03-16',
     time: '08:30',
@@ -116,7 +116,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
     availableSeats: 3,
   },
   {
-    id: 2,
+    id: '2',
     route: 'Hue -> Da Nang',
     date: '2026-03-16',
     time: '09:00',
@@ -128,7 +128,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
     availableSeats: 5,
   },
   {
-    id: 3,
+    id: '3',
     route: 'Da Nang -> Hue',
     date: '2026-03-15',
     time: '14:00',
@@ -140,7 +140,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
     availableSeats: 2,
   },
   {
-    id: 4,
+    id: '4',
     route: 'Hue -> Da Nang',
     date: '2026-03-15',
     time: '10:30',
@@ -152,7 +152,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
     availableSeats: 7,
   },
   {
-    id: 5,
+    id: '5',
     route: 'Da Nang -> Hue',
     date: '2026-03-14',
     time: '13:00',
@@ -164,7 +164,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
     availableSeats: 4,
   },
   {
-    id: 6,
+    id: '6',
     route: 'Da Nang -> Hue',
     date: '2026-03-16',
     time: '11:00',
@@ -176,7 +176,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
     availableSeats: 6,
   },
   {
-    id: 7,
+    id: '7',
     route: 'Hue -> Da Nang',
     date: '2026-03-18',
     time: '12:30',
@@ -188,7 +188,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
     availableSeats: 1,
   },
   {
-    id: 8,
+    id: '8',
     route: 'Da Nang -> Hue',
     date: '2026-03-15',
     time: '16:00',
@@ -200,7 +200,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
     availableSeats: 3,
   },
   {
-    id: 9,
+    id: '9',
     route: 'Hue -> Da Nang',
     date: '2026-03-14',
     time: '15:30',
@@ -212,7 +212,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
     availableSeats: 2,
   },
   {
-    id: 10,
+    id: '10',
     route: 'Da Nang -> Hue',
     date: '2026-03-14',
     time: '08:00',
@@ -224,7 +224,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
     availableSeats: 5,
   },
   {
-    id: 11,
+    id: '11',
     route: 'Da Nang -> Hue',
     date: '2026-03-17',
     time: '07:30',
@@ -236,7 +236,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
     availableSeats: 4,
   },
   {
-    id: 12,
+    id: '12',
     route: 'Hue -> Da Nang',
     date: '2026-03-17',
     time: '09:40',
@@ -248,7 +248,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
     availableSeats: 6,
   },
   {
-    id: 13,
+    id: '13',
     route: 'Da Nang -> Hue',
     date: '2026-03-13',
     time: '18:20',
@@ -263,7 +263,7 @@ export const tripRecordsSeed: TripStatusRecord[] = [
 
 export const bookingRecordsSeed: BookingStatusRecord[] = [
   {
-    id: 1,
+    id: '1',
     route: 'Da Nang -> Hue',
     date: '2026-03-16',
     time: '08:30',
@@ -276,7 +276,7 @@ export const bookingRecordsSeed: BookingStatusRecord[] = [
     note: 'Can nhac truoc 10 phut',
   },
   {
-    id: 2,
+    id: '2',
     route: 'Hue -> Da Nang',
     date: '2026-03-16',
     time: '09:00',
@@ -289,7 +289,7 @@ export const bookingRecordsSeed: BookingStatusRecord[] = [
     note: 'Co hanh ly 15kg',
   },
   {
-    id: 3,
+    id: '3',
     route: 'Da Nang -> Hue',
     date: '2026-03-16',
     time: '11:00',
@@ -302,7 +302,7 @@ export const bookingRecordsSeed: BookingStatusRecord[] = [
     note: 'Di cung gia dinh',
   },
   {
-    id: 4,
+    id: '4',
     route: 'Hue -> Da Nang',
     date: '2026-03-16',
     time: '12:30',
@@ -315,7 +315,7 @@ export const bookingRecordsSeed: BookingStatusRecord[] = [
     note: 'Can vi tri ngan cua',
   },
   {
-    id: 5,
+    id: '5',
     route: 'Da Nang -> Hue',
     date: '2026-03-15',
     time: '14:00',
@@ -328,7 +328,7 @@ export const bookingRecordsSeed: BookingStatusRecord[] = [
     note: 'Thanh toan truoc',
   },
   {
-    id: 6,
+    id: '6',
     route: 'Hue -> Da Nang',
     date: '2026-03-15',
     time: '10:30',
@@ -341,7 +341,7 @@ export const bookingRecordsSeed: BookingStatusRecord[] = [
     note: 'Khach huy do thay doi lich',
   },
   {
-    id: 7,
+    id: '7',
     route: 'Da Nang -> Hue',
     date: '2026-03-16',
     time: '08:30',
@@ -354,7 +354,7 @@ export const bookingRecordsSeed: BookingStatusRecord[] = [
     note: 'Dat qua hotline',
   },
   {
-    id: 8,
+    id: '8',
     route: 'Hue -> Da Nang',
     date: '2026-03-16',
     time: '09:00',
@@ -367,7 +367,7 @@ export const bookingRecordsSeed: BookingStatusRecord[] = [
     note: 'Cho xac nhan thanh toan',
   },
   {
-    id: 9,
+    id: '9',
     route: 'Da Nang -> Hue',
     date: '2026-03-15',
     time: '16:00',
@@ -380,7 +380,7 @@ export const bookingRecordsSeed: BookingStatusRecord[] = [
     note: 'Khong hanh ly',
   },
   {
-    id: 10,
+    id: '10',
     route: 'Hue -> Da Nang',
     date: '2026-03-15',
     time: '15:30',
@@ -393,7 +393,7 @@ export const bookingRecordsSeed: BookingStatusRecord[] = [
     note: 'Dat 3 ghe canh nhau',
   },
   {
-    id: 11,
+    id: '11',
     route: 'Da Nang -> Hue',
     date: '2026-03-17',
     time: '07:30',
@@ -406,7 +406,7 @@ export const bookingRecordsSeed: BookingStatusRecord[] = [
     note: 'Khach moi dang ky app',
   },
   {
-    id: 12,
+    id: '12',
     route: 'Hue -> Da Nang',
     date: '2026-03-17',
     time: '09:40',

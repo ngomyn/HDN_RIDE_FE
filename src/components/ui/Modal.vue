@@ -2,7 +2,7 @@
 interface Props {
   modelValue: boolean
   title?: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
   closeButton?: boolean
 }
 
@@ -19,6 +19,7 @@ const sizeClasses = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-lg',
+  xl: 'max-w-4xl',
 }
 
 const handleBackdropClick = () => {

@@ -1,7 +1,17 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import type { Role } from '@/types/api'
 
-const routes = [
+type AppRouteRole = Role
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+    allowedRoles?: AppRouteRole[]
+  }
+}
+
+const routes: RouteRecordRaw[] = [
   {
     path: '/',
     redirect: '/dashboard',
@@ -16,43 +26,49 @@ const routes = [
     path: '/dashboard',
     name: 'dashboard',
     component: () => import('@/pages/DashboardPage.vue'),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: '/create-trip',
-    name: 'create-trip',
-    component: () => import('@/pages/CreateTripPage.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'MANAGER'] as Role[] },
   },
   {
     path: '/trips',
     name: 'trips',
-    component: () => import('@/pages/TripStatusPage.vue'),
-    meta: { requiresAuth: true },
+    component: () => import('@/pages/TripManagementPage.vue'),
+    meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'MANAGER'] as Role[] },
   },
   {
     path: '/bookings',
     name: 'bookings',
-    component: () => import('@/pages/BookingStatusPage.vue'),
-    meta: { requiresAuth: true },
+    component: () => import('@/pages/BookingManagementPage.vue'),
+    meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'MANAGER'] as Role[] },
   },
   {
     path: '/drivers',
     name: 'drivers',
     component: () => import('@/pages/DriverManagementPage.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'MANAGER'] as Role[] },
   },
   {
     path: '/customers',
     name: 'customers',
     component: () => import('@/pages/CustomerManagementPage.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'MANAGER'] as Role[] },
   },
   {
     path: '/student-verifications',
     name: 'student-verifications',
     component: () => import('@/pages/StudentVerificationPage.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'MANAGER'] as Role[] },
+  },
+  {
+    path: '/revenue',
+    name: 'revenue',
+    component: () => import('@/pages/RevenueManagementPage.vue'),
+    meta: { requiresAuth: true, allowedRoles: ['MANAGER'] as Role[] },
+  },
+  {
+    path: '/settings',
+    name: 'settings',
+    component: () => import('@/pages/SettingsPage.vue'),
+    meta: { requiresAuth: true, allowedRoles: ['MANAGER'] as Role[] },
   },
   {
     path: '/:pathMatch(.*)*',
@@ -71,7 +87,12 @@ router.beforeEach((to, _from, next) => {
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
   } else if (to.path === '/login' && authStore.isAuthenticated) {
-    next('/dashboard')
+    next(authStore.homeRoute)
+  } else if (to.meta.requiresAuth && !authStore.userRole) {
+    authStore.logout()
+    next('/login')
+  } else if (to.meta.requiresAuth && !authStore.canAccess(to.meta.allowedRoles)) {
+    next(authStore.homeRoute)
   } else {
     next()
   }
