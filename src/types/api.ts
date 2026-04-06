@@ -193,6 +193,22 @@ export interface CustomerAdminSummary {
   pendingStudents: number
 }
 
+export interface AdminStaffItem {
+  id: string
+  name: string
+  phone: string
+  gmail: string | null
+  accountStatus: AccountStatus
+  createDate: string
+  dateOfBirth: string
+}
+
+export interface AdminStaffSummary {
+  total: number
+  active: number
+  inactive: number
+}
+
 export interface CustomerAdminListQuery {
   userId?: string
   page?: number
@@ -220,6 +236,16 @@ export interface AdminDriverListQuery {
   plate?: string
   completedTripsFrom?: string
   completedTripsTo?: string
+  joinedFrom?: string
+  joinedTo?: string
+}
+
+export interface AdminStaffListQuery {
+  page?: number
+  limit?: number
+  accountStatus?: AccountStatus
+  name?: string
+  phone?: string
   joinedFrom?: string
   joinedTo?: string
 }
@@ -397,6 +423,25 @@ export interface UpdateDriverDto {
   vehicleYear?: number | null
   vehiclePlate?: string
   vehicleSeats?: number
+}
+
+export interface CreateAdminStaffDto {
+  name: string
+  phone: string
+  password: string
+  gmail?: string
+  dateOfBirth: string
+}
+
+export interface UpdateAdminStaffDto {
+  name?: string
+  gmail?: string | null
+  dateOfBirth?: string
+  password?: string
+}
+
+export interface UpdateAdminStaffStatusDto {
+  accountStatus: AccountStatus
 }
 
 export interface UpdateBookingPaymentStatusDto {

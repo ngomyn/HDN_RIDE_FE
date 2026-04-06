@@ -60,6 +60,13 @@ const menuItems = [
     allowedRoles: ["ADMIN", "MANAGER"] as Role[],
   },
   {
+    name: "staff",
+    label: "Quản Lý Nhân Viên",
+    icon: MenuDriverIcon,
+    path: "/staff",
+    allowedRoles: ["MANAGER"] as Role[],
+  },
+  {
     name: "revenue",
     label: "Quản Lý Doanh Thu",
     icon: DollarSign,

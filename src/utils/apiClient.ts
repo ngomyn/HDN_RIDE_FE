@@ -2,11 +2,15 @@ import type {
   AccountStatus,
   AdminDriver,
   AdminDriverListQuery,
+  AdminStaffItem,
+  AdminStaffListQuery,
+  AdminStaffSummary,
   ApiResponse,
   AssignBookingDto,
   PaginatedResponse,
   AuthResponse,
   BookingStatus,
+  CreateAdminStaffDto,
   CreateDriverDto,
   CreateDriverResult,
   CustomerAdminItem,
@@ -25,6 +29,8 @@ import type {
   AdminBookingListQuery,
   AdminBookingSummary,
   UpdateDriverDto,
+  UpdateAdminStaffDto,
+  UpdateAdminStaffStatusDto,
   UpdateBookingPaymentStatusDto,
   UpdateDriverStatusDto,
   UpdateProfileDto,
@@ -469,6 +475,56 @@ export const apiClient = {
       headers: getHeaders(),
     })
     return handleResponse<ApiResponse<DriverSummary>>(res)
+  },
+
+  async createAdminStaff(payload: CreateAdminStaffDto) {
+    const res = await fetch(`${API_BASE_URL}/admin/staff`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<ApiResponse<AdminStaffItem>>(res)
+  },
+
+  async getAdminStaff(params?: AdminStaffListQuery) {
+    const query = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          query.append(key, String(value))
+        }
+      })
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    const res = await fetch(`${API_BASE_URL}/admin/staff${suffix}`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<PaginatedResponse<AdminStaffItem>>>(res)
+  },
+
+  async getAdminStaffSummary() {
+    const res = await fetch(`${API_BASE_URL}/admin/staff/summary`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<AdminStaffSummary>>(res)
+  },
+
+  async updateAdminStaff(userId: string, payload: UpdateAdminStaffDto) {
+    const res = await fetch(`${API_BASE_URL}/admin/staff/${userId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<ApiResponse<AdminStaffItem>>(res)
+  },
+
+  async updateAdminStaffStatus(userId: string, payload: UpdateAdminStaffStatusDto) {
+    const res = await fetch(`${API_BASE_URL}/admin/staff/${userId}/status`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<ApiResponse<{ id: string; name: string; phone: string; accountStatus: AccountStatus }>>(res)
   },
 
   async getAdminCustomers(params?: CustomerAdminListQuery) {
