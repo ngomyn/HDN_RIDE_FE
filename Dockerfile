@@ -7,6 +7,12 @@ RUN npm ci
 FROM node:20-bookworm-slim AS builder
 WORKDIR /usr/src/app
 
+ARG VITE_API_BASE_URL
+ARG VITE_SOCKET_URL
+
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_SOCKET_URL=$VITE_SOCKET_URL
+
 COPY --from=deps /usr/src/app/node_modules ./node_modules
 COPY . .
 
