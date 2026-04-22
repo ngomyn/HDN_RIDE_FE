@@ -257,10 +257,6 @@ watch(
                   </h3>
                   <div class="space-y-3 text-sm text-[#4A2A12]">
                     <div>
-                      <p class="text-xs text-gray-500">Quận/Huyện</p>
-                      <p class="mt-1 font-semibold">{{ props.booking.pickupDistrict || '--' }}</p>
-                    </div>
-                    <div>
                       <p class="text-xs text-gray-500">Phường/Xã</p>
                       <p class="mt-1 font-semibold">{{ props.booking.pickupWard || '--' }}</p>
                     </div>
@@ -281,10 +277,6 @@ watch(
                     Điểm trả
                   </h3>
                   <div class="space-y-3 text-sm text-[#4A2A12]">
-                    <div>
-                      <p class="text-xs text-gray-500">Quận/Huyện</p>
-                      <p class="mt-1 font-semibold">{{ props.booking.dropoffDistrict || '--' }}</p>
-                    </div>
                     <div>
                       <p class="text-xs text-gray-500">Phường/Xã</p>
                       <p class="mt-1 font-semibold">{{ props.booking.dropoffWard || '--' }}</p>

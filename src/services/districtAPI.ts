@@ -1,41 +1,44 @@
 import { apiClient } from '@/utils/apiClient'
 
 /**
- * District API service
- * Provides methods to fetch district and ward data from backend
+ * Legacy /districts API wrapper.
+ * Backend paths keep the old prefix for compatibility, but the catalog is ward-based.
  */
-export const districtAPI = {
+export const locationCatalogAPI = {
   /**
-   * Get all districts (Đà Nẵng + Huế)
-   * @returns {success, data: [list of full district objects]}
+   * Get all ward catalog entries (Đà Nẵng + Huế)
    */
-  getAllDistricts: async () => {
+  getAllWards: async () => {
     return apiClient.getAllDistricts()
   },
 
   /**
-   * Get Đà Nẵng districts
-   * @returns {success, data: [list of district names]}
+   * Get Đà Nẵng ward names
    */
-  getDaNangDistricts: async () => {
+  getDaNangWards: async () => {
     return apiClient.getDistrictsByCity('danang')
   },
 
   /**
-   * Get Huế districts
-   * @returns {success, data: [list of district names]}
+   * Get Huế ward names
    */
-  getHueDistricts: async () => {
+  getHueWards: async () => {
     return apiClient.getDistrictsByCity('hue')
   },
 
   /**
-   * Get wards by district code
-   * @returns {success, data: [ward names]}
+   * Get ward names by legacy district code.
    */
-  getDistrictWards: async (districtCode: number) => {
+  getWardsByLegacyDistrictCode: async (districtCode: number) => {
     return apiClient.getDistrictWards(districtCode)
   },
 }
 
-export default districtAPI
+export const districtAPI = {
+  getAllDistricts: locationCatalogAPI.getAllWards,
+  getDaNangDistricts: locationCatalogAPI.getDaNangWards,
+  getHueDistricts: locationCatalogAPI.getHueWards,
+  getDistrictWards: locationCatalogAPI.getWardsByLegacyDistrictCode,
+}
+
+export default locationCatalogAPI

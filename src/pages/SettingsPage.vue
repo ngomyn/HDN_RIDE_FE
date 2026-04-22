@@ -4,7 +4,7 @@ import { usePricingStore } from '@/stores/pricing'
 import { apiClient } from '@/utils/apiClient'
 import Breadcrumb from '@/components/Breadcrumb.vue'
 import { Save, RefreshCw, Clock3 } from 'lucide-vue-next'
-import type { OperationalSettings, PriceConfig, Route, VehicleType } from '@/types/api'
+import type { AllowedBookingWardCity, AllowedBookingWardOption, OperationalSettings, PriceConfig, Route, VehicleType } from '@/types/api'
 
 const pricingStore = usePricingStore()
 const routes = ref<Route[]>([])
@@ -25,6 +25,19 @@ const runtimeLoading = ref(false)
 const runtimeSaving = ref(false)
 const runtimeError = ref('')
 const runtimeSuccess = ref(false)
+const allowedWardCityTabs: Array<{ value: AllowedBookingWardCity; label: string }> = [
+  { value: 'danang', label: 'Đà Nẵng' },
+  { value: 'hue', label: 'Huế' },
+]
+const activeAllowedWardCity = ref<AllowedBookingWardCity>('danang')
+const allowedWardOptions = ref<Record<AllowedBookingWardCity, AllowedBookingWardOption[]>>({
+  danang: [],
+  hue: [],
+})
+const allowedWardSaving = ref(false)
+const allowedWardLoading = ref(false)
+const allowedWardError = ref('')
+const allowedWardSuccess = ref(false)
 
 const vehicleTypeOrder: Record<Exclude<VehicleType, null>, number> = {
   SEAT_4: 1,
@@ -55,6 +68,14 @@ const routeCards = computed(() => {
 
 const activePrivateConfigs = computed(() => {
   return pricingStore.configs.filter((config) => config.pricingType === 'PRIVATE' && config.isActive !== false).length
+})
+
+const currentAllowedWardOptions = computed(() => {
+  return allowedWardOptions.value[activeAllowedWardCity.value] ?? []
+})
+
+const currentAllowedWardCount = computed(() => {
+  return currentAllowedWardOptions.value.filter((ward) => ward.isAllowed).length
 })
 
 const getEditedPrice = (config: PriceConfig): string => {
@@ -104,6 +125,63 @@ const loadRuntimeSettings = async () => {
     runtimeError.value = err instanceof Error ? err.message : 'Không thể tải cấu hình vận hành'
   } finally {
     runtimeLoading.value = false
+  }
+}
+
+const loadAllowedWardOptions = async () => {
+  allowedWardLoading.value = true
+  allowedWardError.value = ''
+
+  try {
+    const [danangResponse, hueResponse] = await Promise.all([
+      apiClient.getAllowedBookingWards('danang'),
+      apiClient.getAllowedBookingWards('hue'),
+    ])
+
+    allowedWardOptions.value = {
+      danang: danangResponse.data ?? [],
+      hue: hueResponse.data ?? [],
+    }
+  } catch (err: unknown) {
+    allowedWardError.value = err instanceof Error ? err.message : 'Không thể tải danh sách phường/xã phục vụ'
+  } finally {
+    allowedWardLoading.value = false
+  }
+}
+
+const toggleAllowedWard = (city: AllowedBookingWardCity, wardCode: number) => {
+  allowedWardOptions.value = {
+    ...allowedWardOptions.value,
+    [city]: (allowedWardOptions.value[city] ?? []).map((ward) => (
+      ward.code === wardCode ? { ...ward, isAllowed: !ward.isAllowed } : ward
+    )),
+  }
+  allowedWardSuccess.value = false
+}
+
+const saveAllowedWards = async () => {
+  allowedWardSaving.value = true
+  allowedWardError.value = ''
+  allowedWardSuccess.value = false
+
+  try {
+    const wardCodes = currentAllowedWardOptions.value
+      .filter((ward) => ward.isAllowed)
+      .map((ward) => ward.code)
+
+    await apiClient.updateAllowedBookingWards({
+      city: activeAllowedWardCity.value,
+      wardCodes,
+    })
+
+    allowedWardSuccess.value = true
+    setTimeout(() => {
+      allowedWardSuccess.value = false
+    }, 2000)
+  } catch (err: unknown) {
+    allowedWardError.value = err instanceof Error ? err.message : 'Không thể lưu phạm vi phục vụ'
+  } finally {
+    allowedWardSaving.value = false
   }
 }
 
@@ -169,7 +247,7 @@ const saveRuntimeSettings = async () => {
 }
 
 const refreshAll = async () => {
-  await Promise.all([loadPricingConfigs(), loadRuntimeSettings()])
+  await Promise.all([loadPricingConfigs(), loadRuntimeSettings(), loadAllowedWardOptions()])
 }
 
 onMounted(async () => {
@@ -294,6 +372,99 @@ onMounted(async () => {
             </div>
           </div>
         </article>
+      </div>
+    </section>
+
+    <section class="rounded-xl bg-white p-6 shadow-sm">
+      <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-[#4A2A12]">Phạm vi phục vụ</h2>
+          <p class="mt-1 text-sm text-gray-500">Quản lý các phường/xã được phép đặt xe theo từng thành phố.</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button
+            class="flex h-11 items-center gap-2 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            :disabled="allowedWardLoading || allowedWardSaving"
+            @click="loadAllowedWardOptions"
+          >
+            <RefreshCw :size="16" />
+            Làm mới
+          </button>
+          <button
+            class="flex h-11 items-center gap-2 rounded-lg bg-[#4A2A12] px-6 text-sm font-medium text-white transition-colors hover:bg-[#3c220f] disabled:opacity-60"
+            :disabled="allowedWardLoading || allowedWardSaving"
+            @click="saveAllowedWards"
+          >
+            <Save :size="18" />
+            {{ allowedWardSaving ? 'Đang lưu...' : allowedWardSuccess ? 'Đã lưu' : 'Lưu phạm vi' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="mb-5 flex flex-wrap gap-3">
+        <button
+          v-for="tab in allowedWardCityTabs"
+          :key="tab.value"
+          class="rounded-full px-4 py-2 text-sm font-medium transition-colors"
+          :class="activeAllowedWardCity === tab.value ? 'bg-[#4A2A12] text-white' : 'bg-[#F6EFE8] text-[#4A2A12] hover:bg-[#efe3d7]'"
+          @click="activeAllowedWardCity = tab.value"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+
+      <div class="mb-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <article class="rounded-lg border border-gray-200 p-4">
+          <p class="text-sm font-medium text-gray-500">Thành phố đang chọn</p>
+          <p class="mt-2 text-2xl font-bold text-[#4A2A12]">
+            {{ allowedWardCityTabs.find((tab) => tab.value === activeAllowedWardCity)?.label }}
+          </p>
+        </article>
+        <article class="rounded-lg border border-gray-200 p-4">
+          <p class="text-sm font-medium text-gray-500">Phường/xã đang mở</p>
+          <p class="mt-2 text-2xl font-bold text-[#4A2A12]">{{ currentAllowedWardCount }}</p>
+        </article>
+        <article class="rounded-lg border border-gray-200 p-4">
+          <p class="text-sm font-medium text-gray-500">Tổng số phường/xã</p>
+          <p class="mt-2 text-2xl font-bold text-[#4A2A12]">{{ currentAllowedWardOptions.length }}</p>
+        </article>
+      </div>
+
+      <div v-if="allowedWardLoading" class="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500">
+        Đang tải danh sách phường/xã phục vụ...
+      </div>
+
+      <div v-else-if="allowedWardError" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+        {{ allowedWardError }}
+      </div>
+
+      <div v-else class="space-y-4">
+        <div class="rounded-lg border border-[#F2B233] bg-[#FFF9EB] px-4 py-3 text-sm text-[#4A2A12]">
+          Chọn các phường/xã được phép tạo booking. Mobile app sẽ chặn ngay khi người dùng chọn điểm ngoài phạm vi này.
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <button
+            v-for="ward in currentAllowedWardOptions"
+            :key="ward.code"
+            type="button"
+            class="flex items-start justify-between rounded-xl border px-4 py-3 text-left transition-colors"
+            :class="ward.isAllowed ? 'border-[#4A2A12] bg-[#f8efe7]' : 'border-gray-200 bg-white hover:border-[#d9c2ae]'"
+            @click="toggleAllowedWard(activeAllowedWardCity, ward.code)"
+          >
+            <span>
+              <span class="block text-sm font-semibold text-[#4A2A12]">{{ ward.name }}</span>
+              <span class="mt-1 block text-xs text-gray-500">Mã {{ ward.code }} • {{ ward.provinceName }}</span>
+            </span>
+            <span
+              class="ml-3 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
+              :class="ward.isAllowed ? 'bg-[#4A2A12] text-white' : 'bg-gray-100 text-gray-500'"
+            >
+              {{ ward.isAllowed ? 'Đang mở' : 'Đã tắt' }}
+            </span>
+          </button>
+        </div>
       </div>
     </section>
 

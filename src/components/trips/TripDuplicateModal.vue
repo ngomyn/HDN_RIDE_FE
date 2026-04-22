@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
-import districtAPI from "@/services/districtAPI";
+import locationCatalogAPI from "@/services/districtAPI";
 import type { District, Route } from "@/types/api";
 
 interface TripSummary {
@@ -75,7 +75,7 @@ const getDistrictsByProvinceFallback = (city: "danang" | "hue"): District[] => {
 const ensureAllDistrictsLoaded = async () => {
   if (allDistricts.value.length > 0) return;
 
-  const result = await districtAPI.getAllDistricts();
+  const result = await locationCatalogAPI.getAllWards();
   allDistricts.value = result.data ?? [];
 };
 
@@ -101,8 +101,8 @@ const loadDistrictsForRoute = async (route: string) => {
 
     const byCityResult =
       sourceCity === "hue"
-        ? await districtAPI.getHueDistricts()
-        : await districtAPI.getDaNangDistricts();
+        ? await locationCatalogAPI.getHueWards()
+        : await locationCatalogAPI.getDaNangWards();
 
     const districtNames = byCityResult.data ?? [];
     const mappedDistricts = mapDistrictNamesToDistrictObjects(districtNames);
@@ -123,7 +123,7 @@ const loadWardsByDistrictCode = async (districtCode: number) => {
   form.ward = "";
 
   try {
-    const result = await districtAPI.getDistrictWards(districtCode);
+    const result = await locationCatalogAPI.getWardsByLegacyDistrictCode(districtCode);
     wardOptions.value = result.data ?? [];
   } catch (_error) {
     wardOptions.value = [];
