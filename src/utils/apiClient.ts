@@ -46,6 +46,8 @@ import type {
   OperationalSettings,
   UpdateOperationalSettingsDto,
   AdminNotificationHistoryItem,
+  AllowedBookingWardCity,
+  AllowedBookingWardOption,
 } from '@/types/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
@@ -786,6 +788,23 @@ export const apiClient = {
       body: JSON.stringify(payload),
     })
     return handleResponse<ApiResponse<OperationalSettings>>(res)
+  },
+
+  async getAllowedBookingWards(city: AllowedBookingWardCity) {
+    const suffix = `?city=${city}`
+    const res = await fetch(`${API_BASE_URL}/admin/settings/allowed-wards${suffix}`, {
+      headers: getHeaders(),
+    })
+    return handleResponse<ApiResponse<AllowedBookingWardOption[]>>(res)
+  },
+
+  async updateAllowedBookingWards(payload: { city: AllowedBookingWardCity; wardCodes: number[] }) {
+    const res = await fetch(`${API_BASE_URL}/admin/settings/allowed-wards`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<ApiResponse<AllowedBookingWardOption[]>>(res)
   },
 
   async getAdminNotifications(params?: { page?: number; limit?: number; type?: 'new_booking' | 'student_card_uploaded' }) {

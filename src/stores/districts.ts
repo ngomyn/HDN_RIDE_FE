@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
-import { districtAPI } from '@/services/districtAPI'
+import { locationCatalogAPI } from '@/services/districtAPI'
 
-interface DistrictCacheEntry {
+interface WardCatalogCacheEntry {
   daNang: string[]
   hue: string[]
   timestamp: number
@@ -10,27 +10,27 @@ interface DistrictCacheEntry {
 const CACHE_KEY = 'hdn-districts-cache'
 const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24 hours
 
-export const useDistrictStore = defineStore('districts', {
+export const useLocationCatalogStore = defineStore('districts', {
   state: () => ({
-    daNangDistricts: [] as string[],
-    hueDistricts: [] as string[],
+    daNangWardNames: [] as string[],
+    hueWardNames: [] as string[],
     loading: false,
     error: null as string | null,
   }),
 
   getters: {
-    allDistricts(): string[] {
-      return [...this.daNangDistricts, ...this.hueDistricts]
+    allWardNames(): string[] {
+      return [...this.daNangWardNames, ...this.hueWardNames]
     },
   },
 
   actions: {
-    async fetchDistricts() {
+    async fetchWardNames() {
       // Check localStorage cache first
       const cached = this.getCache()
       if (cached) {
-        this.daNangDistricts = cached.daNang
-        this.hueDistricts = cached.hue
+        this.daNangWardNames = cached.daNang
+        this.hueWardNames = cached.hue
         return
       }
 
@@ -39,37 +39,37 @@ export const useDistrictStore = defineStore('districts', {
         this.error = null
 
         const [daNangRes, hueRes] = await Promise.all([
-          districtAPI.getDaNangDistricts(),
-          districtAPI.getHueDistricts(),
+          locationCatalogAPI.getDaNangWards(),
+          locationCatalogAPI.getHueWards(),
         ])
 
         if (daNangRes.data) {
-          this.daNangDistricts = daNangRes.data
+          this.daNangWardNames = daNangRes.data
         }
 
         if (hueRes.data) {
-          this.hueDistricts = hueRes.data
+          this.hueWardNames = hueRes.data
         }
 
         // Save to localStorage
         this.saveCache({
-          daNang: this.daNangDistricts,
-          hue: this.hueDistricts,
+          daNang: this.daNangWardNames,
+          hue: this.hueWardNames,
           timestamp: Date.now(),
         })
       } catch (err: any) {
-        this.error = err.message || 'Tải danh sách quận/huyện thất bại'
+        this.error = err.message || 'Tải danh sách phường/xã thất bại'
       } finally {
         this.loading = false
       }
     },
 
-    getCache(): DistrictCacheEntry | null {
+    getCache(): WardCatalogCacheEntry | null {
       try {
         const cached = localStorage.getItem(CACHE_KEY)
         if (!cached) return null
 
-        const entry = JSON.parse(cached) as DistrictCacheEntry
+        const entry = JSON.parse(cached) as WardCatalogCacheEntry
         const isExpired = Date.now() - entry.timestamp > CACHE_DURATION
         if (isExpired) {
           localStorage.removeItem(CACHE_KEY)
@@ -82,18 +82,24 @@ export const useDistrictStore = defineStore('districts', {
       }
     },
 
-    saveCache(entry: DistrictCacheEntry): void {
+    saveCache(entry: WardCatalogCacheEntry): void {
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify(entry))
       } catch (err) {
-        console.error('Failed to save district cache:', err)
+        console.error('Failed to save ward catalog cache:', err)
       }
     },
 
     clearCache(): void {
       localStorage.removeItem(CACHE_KEY)
-      this.daNangDistricts = []
-      this.hueDistricts = []
+      this.daNangWardNames = []
+      this.hueWardNames = []
+    },
+
+    async fetchDistricts() {
+      await this.fetchWardNames()
     },
   },
 })
+
+export const useDistrictStore = useLocationCatalogStore

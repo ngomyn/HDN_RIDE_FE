@@ -108,11 +108,11 @@ export interface Booking {
   } | null
   passengerName: string
   passengerPhone: string
-  pickupDistrict: string | null
   pickupWard: string
   pickupAddress: string
+  pickupLat: number | null
+  pickupLng: number | null
   dropoffPhone: string
-  dropoffDistrict: string | null
   dropoffWard: string | null
   bookingType: BookingType
   numberOfPassengers: number
@@ -124,6 +124,8 @@ export interface Booking {
   dropoffAddress: string | null
   dropoffLat: number | null
   dropoffLng: number | null
+  distance: number | null
+  expectedTime: number | null
   estimatedDepartAt: string
   cancelReason: string | null
   cancelledBy: CancelledBy | null
@@ -337,16 +339,21 @@ export interface CreateBookingDto {
   routeId: number
   passengerName: string
   passengerPhone: string
-  pickupDistrict: string
   pickupWard: string
   pickupAddress: string
   dropoffPhone: string
-  dropoffDistrict?: string | null
-  dropoffWard?: string | null
+  dropoffWard: string
   bookingType: BookingType
   paymentType?: PaymentType
   numberOfPassengers: number
   estimatedDepartAt: string // ISO datetime - when customer wants to depart
+  pickupLat?: number
+  pickupLng?: number
+  dropoffAddress?: string
+  dropoffLat?: number
+  dropoffLng?: number
+  distance?: number
+  expectedTime?: number
 }
 
 export interface AssignBookingDto {
@@ -541,6 +548,16 @@ export interface OperationalSettings {
   createDate: string
   updateUser?: string | null
   updateDate: string
+}
+
+export type AllowedBookingWardCity = 'danang' | 'hue'
+
+export interface AllowedBookingWardOption {
+  code: number
+  name: string
+  provinceCode: number
+  provinceName: string
+  isAllowed: boolean
 }
 
 export interface UpdateOperationalSettingsDto {

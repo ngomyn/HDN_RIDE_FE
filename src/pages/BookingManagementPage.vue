@@ -728,11 +728,11 @@ const handleUpdatePaymentStatus = async (paymentStatus: PaymentStatus) => {
                 <div class="space-y-1">
                   <p class="font-semibold text-[#4A2A12]">
                     Đón:
-                    {{ booking.pickupWard || booking.pickupDistrict || "--" }}
+                    {{ booking.pickupWard || booking.pickupAddress || "--" }}
                   </p>
                   <p class="text-xs text-[#7B6A60]">
                     Trả:
-                    {{ booking.dropoffWard || booking.dropoffDistrict || "--" }}
+                    {{ booking.dropoffWard || booking.dropoffAddress || "--" }}
                   </p>
                 </div>
               </td>
